@@ -137,6 +137,7 @@ public class DomintellHandlerFactory extends BaseThingHandlerFactory {
                         break;
                     case MODULE_D10:
                     case MODULE_DIM:
+                    case MODULE_DAL:
                         handler = new DomintellDimmerModuleHandler(thing, registry);
                         break;
                     case MODULE_TRV:

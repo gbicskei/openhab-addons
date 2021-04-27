@@ -68,6 +68,80 @@
 		</channels>
 		<config-description-ref uri="thing-type:domintell:addressable"/>
 	</thing-type>
+	<thing-type id="moduleDAL">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="bridge"/>
+		</supported-bridge-type-refs>
+		<label>Domintell DINTDALI01</label>
+		<description>Domintell DINTDALI01 DALI module</description>
+		<channels>
+			<channel id="1" typeId="system.brightness"/>
+			<channel id="2" typeId="system.brightness"/>
+			<channel id="3" typeId="system.brightness"/>
+			<channel id="4" typeId="system.brightness"/>
+			<channel id="5" typeId="system.brightness"/>
+			<channel id="6" typeId="system.brightness"/>
+			<channel id="7" typeId="system.brightness"/>
+			<channel id="8" typeId="system.brightness"/>
+			<channel id="9" typeId="system.brightness"/>
+			<channel id="10" typeId="system.brightness"/>
+			<channel id="11" typeId="system.brightness"/>
+			<channel id="12" typeId="system.brightness"/>
+			<channel id="13" typeId="system.brightness"/>
+			<channel id="14" typeId="system.brightness"/>
+			<channel id="15" typeId="system.brightness"/>
+			<channel id="16" typeId="system.brightness"/>
+			<channel id="17" typeId="system.brightness"/>
+			<channel id="18" typeId="system.brightness"/>
+			<channel id="19" typeId="system.brightness"/>
+			<channel id="20" typeId="system.brightness"/>
+			<channel id="21" typeId="system.brightness"/>
+			<channel id="22" typeId="system.brightness"/>
+			<channel id="23" typeId="system.brightness"/>
+			<channel id="24" typeId="system.brightness"/>
+			<channel id="25" typeId="system.brightness"/>
+			<channel id="26" typeId="system.brightness"/>
+			<channel id="27" typeId="system.brightness"/>
+			<channel id="28" typeId="system.brightness"/>
+			<channel id="29" typeId="system.brightness"/>
+			<channel id="30" typeId="system.brightness"/>
+			<channel id="31" typeId="system.brightness"/>
+			<channel id="32" typeId="system.brightness"/>
+			<channel id="33" typeId="system.brightness"/>
+			<channel id="34" typeId="system.brightness"/>
+			<channel id="35" typeId="system.brightness"/>
+			<channel id="36" typeId="system.brightness"/>
+			<channel id="37" typeId="system.brightness"/>
+			<channel id="38" typeId="system.brightness"/>
+			<channel id="39" typeId="system.brightness"/>
+			<channel id="40" typeId="system.brightness"/>
+			<channel id="41" typeId="system.brightness"/>
+			<channel id="42" typeId="system.brightness"/>
+			<channel id="43" typeId="system.brightness"/>
+			<channel id="44" typeId="system.brightness"/>
+			<channel id="45" typeId="system.brightness"/>
+			<channel id="46" typeId="system.brightness"/>
+			<channel id="47" typeId="system.brightness"/>
+			<channel id="48" typeId="system.brightness"/>
+			<channel id="49" typeId="system.brightness"/>
+			<channel id="50" typeId="system.brightness"/>
+			<channel id="51" typeId="system.brightness"/>
+			<channel id="52" typeId="system.brightness"/>
+			<channel id="53" typeId="system.brightness"/>
+			<channel id="54" typeId="system.brightness"/>
+			<channel id="55" typeId="system.brightness"/>
+			<channel id="56" typeId="system.brightness"/>
+			<channel id="57" typeId="system.brightness"/>
+			<channel id="58" typeId="system.brightness"/>
+			<channel id="59" typeId="system.brightness"/>
+			<channel id="60" typeId="system.brightness"/>
+			<channel id="61" typeId="system.brightness"/>
+			<channel id="62" typeId="system.brightness"/>
+			<channel id="63" typeId="system.brightness"/>
+			<channel id="64" typeId="system.brightness"/>
+		</channels>
+		<config-description-ref uri="thing-type:domintell:addressable"/>
+	</thing-type>
 	<thing-type id="moduleD10">
 		<supported-bridge-type-refs>
 			<bridge-type-ref id="bridge"/>

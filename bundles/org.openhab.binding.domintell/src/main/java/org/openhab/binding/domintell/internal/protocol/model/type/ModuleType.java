@@ -34,7 +34,7 @@ public enum ModuleType {
     ET2, // Ethernet Light Protocol module
     FAN, // Fan controller
     I10, // Analog 0-10V input module
-    DAL, // DALI interface
+    DAL(DINTDALI01Module.class), // DALI interface
     IS4(DISM04Module.class), // 4 Inputs module
     IS8(DISM08Module.class), // 8 Inputs module
     LCD, // 4*20 char LCD with 2 inputs
