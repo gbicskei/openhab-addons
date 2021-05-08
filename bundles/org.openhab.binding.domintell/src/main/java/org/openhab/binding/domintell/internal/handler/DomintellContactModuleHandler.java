@@ -74,6 +74,7 @@ public class DomintellContactModuleHandler extends DomintellModuleHandler {
                 // double press check
                 long doublePressTime = changeDelay[3] - changeDelay[0];
                 long lastPressTime = changeDelay[3] - changeDelay[2];
+                logger.debug("Contact module push event times: Double:{} / Last:{}", doublePressTime, lastPressTime);
                 if (lastPressTime > 0) { // if not in init phase
                     if (doublePressTime < config.getDoublePushTimeout() && doublePressTime > 0) {
                         triggerCommandChannel((@NonNull Integer) item.getItemKey().getIoNumber(), DOUBLE_PUSH);
