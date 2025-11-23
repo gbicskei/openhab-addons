@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -31,6 +31,7 @@ import org.openhab.binding.plugwiseha.internal.api.exception.PlugwiseHAException
 import org.openhab.binding.plugwiseha.internal.api.model.PlugwiseHAController;
 import org.openhab.binding.plugwiseha.internal.api.model.dto.Location;
 import org.openhab.binding.plugwiseha.internal.config.PlugwiseHAThingConfig;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.types.StringType;
@@ -86,7 +87,7 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
             try {
                 PlugwiseHAController controller = bridgeHandler.getController();
                 if (controller != null) {
-                    this.location = getEntity(controller, true);
+                    this.location = getEntity(controller);
                     if (this.location != null) {
                         setLocationProperties();
                         updateStatus(ONLINE);
@@ -103,12 +104,14 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
     }
 
     @Override
-    protected @Nullable Location getEntity(PlugwiseHAController controller, Boolean forceRefresh)
-            throws PlugwiseHAException {
+    protected @Nullable Location getEntity(PlugwiseHAController controller) throws PlugwiseHAException {
         PlugwiseHAThingConfig config = getPlugwiseThingConfig();
-        Location location = controller.getLocation(config.getId(), forceRefresh);
+        return controller.getLocation(config.getId());
+    }
 
-        return location;
+    private Unit<Temperature> getRemoteTemperatureUnit(Location entity) {
+        return UNIT_CELSIUS.equals(entity.getTemperatureUnit().orElse(UNIT_CELSIUS)) ? SIUnits.CELSIUS
+                : ImperialUnits.FAHRENHEIT;
     }
 
     @Override
@@ -119,27 +122,59 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
             PlugwiseHAController controller = bridge.getController();
             if (controller != null) {
                 switch (channelID) {
+                    case ZONE_COOLING_CHANNEL:
+                        if (command instanceof OnOffType onOffCommand) {
+                            try {
+                                controller.setAllowCooling(entity, command == OnOffType.ON);
+                            } catch (PlugwiseHAException e) {
+                                logger.warn("Unable to switch allow cooling {} for zone '{}'", onOffCommand,
+                                        entity.getName());
+                            }
+                        }
+                        break;
                     case ZONE_SETPOINT_CHANNEL:
-                        if (command instanceof QuantityType) {
-                            Unit<Temperature> unit = entity.getSetpointTemperatureUnit().orElse(UNIT_CELSIUS)
-                                    .equals(UNIT_CELSIUS) ? SIUnits.CELSIUS : ImperialUnits.FAHRENHEIT;
-                            QuantityType<?> state = ((QuantityType<?>) command).toUnit(unit);
-                            if (state != null) {
-                                try {
-                                    controller.setLocationThermostat(entity, state.doubleValue());
-                                } catch (PlugwiseHAException e) {
-                                    logger.warn("Unable to update setpoint for zone '{}': {} -> {}", entity.getName(),
-                                            entity.getSetpointTemperature().orElse(null), state.doubleValue());
-                                }
+                        Unit<Temperature> remoteUnit = getRemoteTemperatureUnit(entity);
+                        QuantityType<?> state = null;
+                        if (command instanceof QuantityType<?> quantityCommand) {
+                            state = quantityCommand.toUnit(remoteUnit);
+                        } else if (command instanceof DecimalType decimalCommand) {
+                            state = new QuantityType<>(decimalCommand.doubleValue(), remoteUnit);
+                        }
+                        if (state != null) {
+                            try {
+                                controller.setLocationThermostat(entity, state.doubleValue());
+                            } catch (PlugwiseHAException e) {
+                                logger.warn("Unable to update setpoint for zone '{}': {} -> {}", entity.getName(),
+                                        entity.getSetpointTemperature().orElse(null), state.doubleValue());
                             }
                         }
                         break;
                     case ZONE_PREHEAT_CHANNEL:
-                        if (command instanceof OnOffType) {
+                        if (command instanceof OnOffType onOffCommand) {
                             try {
                                 controller.setPreHeating(entity, command == OnOffType.ON);
                             } catch (PlugwiseHAException e) {
-                                logger.warn("Unable to switch zone pre heating {} for zone '{}'", (State) command,
+                                logger.warn("Unable to switch zone pre heating {} for zone '{}'", onOffCommand,
+                                        entity.getName());
+                            }
+                        }
+                        break;
+                    case ZONE_REGULATION_CHANNEL:
+                        if (command instanceof StringType stringCommand) {
+                            try {
+                                controller.setRegulationControl(entity, command.toString());
+                            } catch (PlugwiseHAException e) {
+                                logger.warn("Unable to switch regulation control {} for zone '{}'", stringCommand,
+                                        entity.getName());
+                            }
+                        }
+                        break;
+                    case ZONE_PRESETSCENE_CHANNEL:
+                        if (command instanceof StringType stringCommand) {
+                            try {
+                                controller.setPresetScene(entity, command.toString());
+                            } catch (PlugwiseHAException e) {
+                                logger.warn("Unable to switch preset scene {} for zone '{}'", stringCommand,
                                         entity.getName());
                             }
                         }
@@ -154,8 +189,10 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
     private State getDefaultState(String channelID) {
         State state = UnDefType.NULL;
         switch (channelID) {
+            case ZONE_COOLING_CHANNEL:
             case ZONE_PREHEAT_CHANNEL:
             case ZONE_PRESETSCENE_CHANNEL:
+            case ZONE_REGULATION_CHANNEL:
             case ZONE_SETPOINT_CHANNEL:
             case ZONE_TEMPERATURE_CHANNEL:
                 state = UnDefType.NULL;
@@ -170,6 +207,12 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
         State state = getDefaultState(channelID);
 
         switch (channelID) {
+            case ZONE_COOLING_CHANNEL:
+                Optional<Boolean> allowCoolingState = entity.getCoolingAllowed();
+                if (allowCoolingState.isPresent()) {
+                    state = OnOffType.from(allowCoolingState.get());
+                }
+                break;
             case ZONE_PREHEAT_CHANNEL:
                 Optional<Boolean> preHeatState = entity.getPreHeatState();
                 if (preHeatState.isPresent()) {
@@ -181,17 +224,20 @@ public class PlugwiseHAZoneHandler extends PlugwiseHABaseHandler<Location, Plugw
                 break;
             case ZONE_SETPOINT_CHANNEL:
                 if (entity.getSetpointTemperature().isPresent()) {
-                    Unit<Temperature> unit = entity.getSetpointTemperatureUnit().orElse(UNIT_CELSIUS)
-                            .equals(UNIT_CELSIUS) ? SIUnits.CELSIUS : ImperialUnits.FAHRENHEIT;
-                    state = new QuantityType<Temperature>(entity.getSetpointTemperature().get(), unit);
+                    Unit<Temperature> unit = getRemoteTemperatureUnit(entity);
+                    state = new QuantityType<>(entity.getSetpointTemperature().get(), unit);
+                }
+                break;
+            case ZONE_REGULATION_CHANNEL:
+                String value = entity.getRegulationControl();
+                if (value != null) {
+                    state = new StringType(entity.getRegulationControl());
                 }
                 break;
             case ZONE_TEMPERATURE_CHANNEL:
                 if (entity.getTemperature().isPresent()) {
-                    Unit<Temperature> unit = entity.getTemperatureUnit().orElse(UNIT_CELSIUS).equals(UNIT_CELSIUS)
-                            ? SIUnits.CELSIUS
-                            : ImperialUnits.FAHRENHEIT;
-                    state = new QuantityType<Temperature>(entity.getTemperature().get(), unit);
+                    Unit<Temperature> unit = getRemoteTemperatureUnit(entity);
+                    state = new QuantityType<>(entity.getTemperature().get(), unit);
                 }
                 break;
             default:

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -950,7 +950,7 @@ public enum HeatpumpChannel {
      * EVU 2
      * (original: EVU 2)
      */
-    // CHANNEL_HZIO_EVU2(185, "HZIO_EVU2", NumberItem.class, null, false, null),
+    CHANNEL_HZIO_EVU2(185, "inputUtilityLock2", SwitchItem.class, null, false, HeatpumpVisibility.IN_EVU),
 
     /**
      * Safety tempearture limiter floor heating
@@ -1193,6 +1193,56 @@ public enum HeatpumpChannel {
      */
     CHANNEL_CODE_FREQ_VD(231, "frequencyCompressor", NumberItem.class, Units.HERTZ, false, null),
 
+    // For Heatpumps with a software version > 3.X the socket serves up to 260 values
+    // As those heatpumps do no longer serve a java applet, but use a web ui, that uses
+    // a web socket connection instead it's not possible to look up the channels in the
+    // code. The following channels are determined based on their values and which value
+    // they match on a heat pump
+
+    CHANNEL_232(232, "temperatureVapourisation", NumberItem.class, SIUnits.CELSIUS, false, null),
+    CHANNEL_233(233, "temperatureLiquefaction", NumberItem.class, SIUnits.CELSIUS, false, null),
+    CHANNEL_234(234, "channel234", NumberItem.class, null, false, null),
+    CHANNEL_235(235, "channel235", NumberItem.class, null, false, null),
+    CHANNEL_236(236, "frequencyCompressorTarget", NumberItem.class, Units.HERTZ, false, null),
+    CHANNEL_237(237, "frequencyCompressorMin", NumberItem.class, Units.HERTZ, false, null),
+    CHANNEL_238(238, "frequencyCompressorMax", NumberItem.class, Units.HERTZ, false, null),
+    CHANNEL_239(239, "temperatureVBOTarget", NumberItem.class, Units.KELVIN, false, null),
+    CHANNEL_240(240, "temperatureVBO", NumberItem.class, Units.KELVIN, false, null),
+    CHANNEL_241(241, "controlSignalHeatingCirculationPump", NumberItem.class, Units.PERCENT, false, null),
+    CHANNEL_242(242, "temperatureHeatingCirculationPumpTarget", NumberItem.class, Units.KELVIN, false, null),
+    CHANNEL_243(243, "temperatureHeatingCirculationPump", NumberItem.class, Units.KELVIN, false, null),
+    CHANNEL_244(244, "channel244", NumberItem.class, null, false, null),
+    CHANNEL_245(245, "channel245", NumberItem.class, null, false, null),
+    CHANNEL_246(246, "channel246", NumberItem.class, null, false, null),
+    CHANNEL_247(247, "channel247", NumberItem.class, null, false, null),
+    CHANNEL_248(248, "channel248", NumberItem.class, null, false, null),
+    CHANNEL_249(249, "channel249", NumberItem.class, null, false, null),
+    CHANNEL_250(250, "channel250", NumberItem.class, null, false, null),
+    CHANNEL_251(251, "channel251", NumberItem.class, null, false, null),
+    CHANNEL_252(252, "temperatureHotGasMax", NumberItem.class, SIUnits.CELSIUS, false, null),
+    CHANNEL_253(253, "channel253", NumberItem.class, null, false, null),
+    CHANNEL_254(254, "flowRateHeatSource2", NumberItem.class, Units.LITRE_PER_MINUTE, false, null),
+    CHANNEL_255(255, "channel255", NumberItem.class, null, false, null),
+    CHANNEL_256(256, "channel256", NumberItem.class, null, false, null),
+    CHANNEL_257(257, "heatingPowerActualValue", NumberItem.class, Units.WATT, false, null),
+
+    /**
+     * Version RBE
+     * handled as property
+     */
+    // CHANNEL_258(258, "versionRBE", NumberItem.class, null, false, null),
+
+    CHANNEL_259(259, "outputControlSignalCooling", SwitchItem.class, null, false, null),
+    CHANNEL_260(260, "timeCoolingRelease", NumberItem.class, Units.SECOND, false, null),
+    CHANNEL_261(261, "channel261", NumberItem.class, null, false, null),
+    CHANNEL_262(262, "channel262", NumberItem.class, null, false, null),
+    CHANNEL_263(263, "channel263", NumberItem.class, null, false, null),
+    CHANNEL_264(264, "channel264", NumberItem.class, null, false, null),
+    CHANNEL_265(265, "channel265", NumberItem.class, null, false, null),
+    CHANNEL_266(266, "channel266", NumberItem.class, null, false, null),
+    CHANNEL_267(267, "channel267", NumberItem.class, null, false, null),
+    CHANNEL_268(268, "powerConsumption", NumberItem.class, Units.WATT, false, null),
+
     // Changeable Parameters
     // https://www.loxwiki.eu/display/LOX/Java+Webinterface?preview=/13306044/13307658/3003.txt
 
@@ -1221,6 +1271,14 @@ public enum HeatpumpChannel {
      * (original: Warmwasser Betriebsart)
      */
     CHANNEL_BA_BW_AKT(4, "hotWaterMode", NumberItem.class, null, true, HeatpumpVisibility.BRAUWASSER),
+
+    /**
+     * Target heating return temperature if heat pump is set to fixed temperature
+     * (will directly set the target return temperature, no automatic changes depending on outside temperature)
+     * (original: Rücklauf FestwerteHK)
+     */
+    CHANNEL_EINST_HZFTRL_AKT(17, "temperatureHeatingFixedReturnTarget", NumberItem.class, SIUnits.CELSIUS, true,
+            HeatpumpVisibility.HEIZUNG),
 
     /**
      * Thermal disinfection (Monday)
@@ -1374,11 +1432,7 @@ public enum HeatpumpChannel {
 
         int code = visiblity.getCode();
 
-        if (visibilityValues.length < code || visibilityValues[code] == 1) {
-            return true;
-        }
-
-        return false;
+        return (visibilityValues.length < code || visibilityValues[code] == 1);
     }
 
     public static HeatpumpChannel fromString(String heatpumpCommand) throws InvalidChannelException {

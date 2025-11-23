@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -18,23 +18,25 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Represents a single devices connected to the Bosch Smart Home Controller.
- *
- * Example from Json:
- *
+ * <p>
+ * Example JSON:
+ * 
+ * <pre>
  * {
- * "@type":"device",
- * "rootDeviceId":"64-da-a0-02-14-9b",
- * "id":"hdm:HomeMaticIP:3014F711A00004953859F31B",
- * "deviceServiceIds":["PowerMeter","PowerSwitch","PowerSwitchProgram","Routing"],
- * "manufacturer":"BOSCH",
- * "roomId":"hz_3",
- * "deviceModel":"PSM",
- * "serial":"3014F711A00004953859F31B",
- * "profile":"GENERIC",
- * "name":"Coffee Machine",
- * "status":"AVAILABLE",
- * "childDeviceIds":[]
+ *   "@type": "device",
+ *   "rootDeviceId": "64-da-a0-02-14-9b",
+ *   "id": "hdm:HomeMaticIP:3014F711A00004953859F31B",
+ *   "deviceServiceIds": ["PowerMeter","PowerSwitch","PowerSwitchProgram","Routing"],
+ *   "manufacturer": "BOSCH",
+ *   "roomId": "hz_3",
+ *   "deviceModel": "PSM",
+ *   "serial": "3014F711A00004953859F31B",
+ *   "profile": "GENERIC",
+ *   "name": "Coffee Machine",
+ *   "status": "AVAILABLE",
+ *   "childDeviceIds": []
  * }
+ * </pre>
  *
  * @author Stefan Kästle - Initial contribution
  */
@@ -45,7 +47,7 @@ public class Device {
 
     public String rootDeviceId;
     public String id;
-    public List<String> deviceSerivceIDs;
+    public List<String> deviceServiceIds;
     public String manufacturer;
     public String roomId;
     public String deviceModel;
@@ -54,4 +56,18 @@ public class Device {
     public String name;
     public String status;
     public List<String> childDeviceIds;
+
+    public static boolean isValid(Device obj) {
+        return obj != null && obj.id != null;
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "Type %s; RootDeviceId: %s; Id: %s; Device Service Ids: %s; Manufacturer: %s; Room Id: %s; Device Model: %s; Serial: %s; Profile: %s; Name: %s; Status: %s; Child Device Ids: %s ",
+                this.type, this.rootDeviceId, this.id,
+                this.deviceServiceIds != null ? String.join(", ", this.deviceServiceIds) : "null", this.manufacturer,
+                this.roomId, this.deviceModel, this.serial, this.profile, this.name, this.status,
+                this.childDeviceIds != null ? String.join(", ", this.childDeviceIds) : "null");
+    }
 }

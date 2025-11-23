@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,6 @@
  */
 package org.openhab.binding.heos.internal.json;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -47,7 +46,7 @@ public class HeosJsonParser {
             .create();
 
     public HeosEventObject parseEvent(String jsonBody) {
-        HeosJsonWrapper wrapper = gson.fromJson(jsonBody, HeosJsonWrapper.class);
+        HeosJsonWrapper wrapper = Objects.requireNonNull(gson.fromJson(jsonBody, HeosJsonWrapper.class));
 
         return postProcess(wrapper.heos);
     }
@@ -62,6 +61,7 @@ public class HeosJsonParser {
     }
 
     private <T> HeosResponseObject<T> postProcess(HeosJsonWrapper wrapper, Class<T> clazz) {
+        @Nullable
         T payload = gson.fromJson(wrapper.payload, clazz);
 
         return new HeosResponseObject<>(HeosCommandTuple.valueOf(wrapper.heos.command), wrapper.heos.command,
@@ -90,10 +90,6 @@ public class HeosJsonParser {
     }
 
     private static String decode(String encoded) {
-        try {
-            return URLDecoder.decode(encoded, StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("Impossible: UTF-8 is a required encoding", e);
-        }
+        return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
     }
 }

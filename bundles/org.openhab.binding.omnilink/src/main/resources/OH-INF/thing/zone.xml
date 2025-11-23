@@ -19,10 +19,6 @@
 			<channel id="bypass" typeId="zone_bypass"/>
 			<channel id="restore" typeId="zone_restore"/>
 		</channels>
-		<properties>
-			<property name="name"/>
-			<property name="area"/>
-		</properties>
 		<representation-property>number</representation-property>
 		<config-description>
 			<parameter name="number" type="integer" required="true">
@@ -38,6 +34,10 @@
 		<label>Contact State</label>
 		<description>Contact state information of this zone.</description>
 		<category>Contact</category>
+		<tags>
+			<tag>Status</tag>
+			<tag>OpenState</tag>
+		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 
@@ -89,6 +89,9 @@
 		<label>Bypass Zone</label>
 		<description>Send a 4 digit user code to bypass this zone.</description>
 		<category>Alarm</category>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="zone_restore">
@@ -96,6 +99,9 @@
 		<label>Restore Zone</label>
 		<description>Send a 4 digit user code to restore this zone.</description>
 		<category>Alarm</category>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
 	</channel-type>
 
 </thing:thing-descriptions>

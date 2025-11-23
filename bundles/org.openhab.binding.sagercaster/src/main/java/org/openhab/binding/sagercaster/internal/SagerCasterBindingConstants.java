@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -11,6 +11,8 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 package org.openhab.binding.sagercaster.internal;
+
+import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.ThingTypeUID;
@@ -29,13 +31,12 @@ public class SagerCasterBindingConstants {
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_SAGERCASTER = new ThingTypeUID(BINDING_ID, "sagercaster");
-
+    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_SAGERCASTER);
     // Configuration elements
     public static final String CONFIG_LOCATION = "location";
     public static final String CONFIG_PERIOD = "observation-period";
 
     // List of all Channel Groups Group Channel ids
-    public static final String GROUP_INPUT = "input";
     public static final String GROUP_OUTPUT = "output";
 
     // Output channel ids
@@ -47,6 +48,9 @@ public class SagerCasterBindingConstants {
     public static final String CHANNEL_WINDEVOLUTION = "wind-evolution";
     public static final String CHANNEL_PRESSURETREND = "pressure-trend";
     public static final String CHANNEL_TEMPERATURETREND = "temperature-trend";
+    public static final String CHANNEL_TIMESTAMP = "timestamp";
+    public static final String CHANNEL_RELIABILITY = "reliability";
+
     // Input channel ids
     public static final String CHANNEL_CLOUDINESS = "cloudiness";
     public static final String CHANNEL_IS_RAINING = "is-raining";
@@ -55,4 +59,8 @@ public class SagerCasterBindingConstants {
     public static final String CHANNEL_TEMPERATURE = "temperature";
     public static final String CHANNEL_PRESSURE = "pressure";
     public static final String CHANNEL_WIND_ANGLE = "wind-angle";
+
+    // Some algorythms constants
+    public static final String FORECAST_PENDING = "0";
+    public static final Set<String> SHOWERS = Set.of("G", "K", "L", "R", "S", "T", "U", "W");
 }

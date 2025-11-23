@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -22,12 +22,13 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -45,6 +46,7 @@ import org.openhab.binding.astro.internal.job.PositionalJob;
 import org.openhab.binding.astro.internal.model.Planet;
 import org.openhab.binding.astro.internal.model.Position;
 import org.openhab.binding.astro.internal.util.PropertyUtils;
+import org.openhab.core.i18n.LocaleProvider;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.scheduler.CronScheduler;
@@ -78,20 +80,27 @@ public abstract class AstroThingHandler extends BaseThingHandler {
 
     protected final TimeZoneProvider timeZoneProvider;
 
+    protected final LocaleProvider localeProvider;
+
     private final Lock monitor = new ReentrantLock();
 
+    // All access must be guarded by "monitor"
     private final Set<ScheduledFuture<?>> scheduledFutures = new HashSet<>();
 
+    // All access must be guarded by "monitor"
     private boolean linkedPositionalChannels;
 
     protected AstroThingConfig thingConfig = new AstroThingConfig();
 
+    // All access must be guarded by "monitor"
     private @Nullable ScheduledCompletableFuture<?> dailyJob;
 
-    public AstroThingHandler(Thing thing, final CronScheduler scheduler, final TimeZoneProvider timeZoneProvider) {
+    public AstroThingHandler(Thing thing, final CronScheduler scheduler, final TimeZoneProvider timeZoneProvider,
+            LocaleProvider localeProvider) {
         super(thing);
         this.cronScheduler = scheduler;
         this.timeZoneProvider = timeZoneProvider;
+        this.localeProvider = localeProvider;
     }
 
     @Override
@@ -168,16 +177,16 @@ public abstract class AstroThingHandler extends BaseThingHandler {
      */
     public void publishChannelIfLinked(ChannelUID channelUID) {
         Planet planet = getPlanet();
-        if (isLinked(channelUID.getId()) && planet != null) {
-            final Channel channel = getThing().getChannel(channelUID.getId());
+        if (isLinked(channelUID) && planet != null) {
+            final Channel channel = getThing().getChannel(channelUID);
             if (channel == null) {
                 logger.error("Cannot find channel for {}", channelUID);
                 return;
             }
             try {
                 AstroChannelConfig config = channel.getConfiguration().as(AstroChannelConfig.class);
-                updateState(channelUID,
-                        PropertyUtils.getState(channelUID, config, planet, timeZoneProvider.getTimeZone()));
+                updateState(channelUID, PropertyUtils.getState(channelUID, config, planet,
+                        TimeZone.getTimeZone(timeZoneProvider.getTimeZone())));
             } catch (Exception ex) {
                 logger.error("Can't update state for channel {} : {}", channelUID, ex.getMessage(), ex);
             }
@@ -194,9 +203,10 @@ public abstract class AstroThingHandler extends BaseThingHandler {
         try {
             stopJobs();
             if (getThing().getStatus() == ONLINE) {
-                String thingUID = getThing().getUID().toString();
+                TimeZone zone = TimeZone.getTimeZone(timeZoneProvider.getTimeZone());
+                Locale locale = localeProvider.getLocale();
                 // Daily Job
-                Job runnable = getDailyJob();
+                Job runnable = getDailyJob(zone, locale);
                 dailyJob = cronScheduler.schedule(runnable, DAILY_MIDNIGHT);
                 logger.debug("Scheduled {} at midnight", dailyJob);
                 // Execute daily startup job immediately
@@ -206,7 +216,7 @@ public abstract class AstroThingHandler extends BaseThingHandler {
                 // Use scheduleAtFixedRate to avoid time drift associated with scheduleWithFixedDelay
                 linkedPositionalChannels = isPositionalChannelLinked();
                 if (linkedPositionalChannels) {
-                    Job positionalJob = new PositionalJob(thingUID);
+                    Job positionalJob = new PositionalJob(this);
                     ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(positionalJob, 0, thingConfig.interval,
                             TimeUnit.SECONDS);
                     scheduledFutures.add(future);
@@ -259,10 +269,16 @@ public abstract class AstroThingHandler extends BaseThingHandler {
      */
     private void linkedChannelChange(ChannelUID channelUID) {
         if (Arrays.asList(getPositionalChannelIds()).contains(channelUID.getId())) {
-            boolean oldValue = linkedPositionalChannels;
-            linkedPositionalChannels = isPositionalChannelLinked();
-            if (oldValue != linkedPositionalChannels) {
-                restartJobs();
+            boolean newValue = isPositionalChannelLinked();
+            monitor.lock();
+            try {
+                boolean oldValue = linkedPositionalChannels;
+                linkedPositionalChannels = newValue;
+                if (oldValue != linkedPositionalChannels) {
+                    restartJobs();
+                }
+            } finally {
+                monitor.unlock();
             }
         }
     }
@@ -273,8 +289,8 @@ public abstract class AstroThingHandler extends BaseThingHandler {
     private boolean isPositionalChannelLinked() {
         List<String> positionalChannels = Arrays.asList(getPositionalChannelIds());
         for (Channel channel : getThing().getChannels()) {
-            String id = channel.getUID().getId();
-            if (isLinked(id) && positionalChannels.contains(id)) {
+            ChannelUID id = channel.getUID();
+            if (isLinked(id) && positionalChannels.contains(id.getId())) {
                 return true;
             }
         }
@@ -295,8 +311,6 @@ public abstract class AstroThingHandler extends BaseThingHandler {
 
     /**
      * Adds the provided {@link Job} to the queue (cannot be {@code null})
-     *
-     * @return {@code true} if the {@code job} is added to the queue, otherwise {@code false}
      */
     public void schedule(Job job, Calendar eventAt) {
         long sleepTime;
@@ -310,18 +324,23 @@ public abstract class AstroThingHandler extends BaseThingHandler {
             monitor.unlock();
         }
         if (logger.isDebugEnabled()) {
-            String formattedDate = this.isoFormatter.format(eventAt);
+            final String formattedDate = this.isoFormatter.format(eventAt.getTime());
             logger.debug("Scheduled {} in {}ms (at {})", job, sleepTime, formattedDate);
         }
     }
 
     private void tidyScheduledFutures() {
-        for (Iterator<ScheduledFuture<?>> iterator = scheduledFutures.iterator(); iterator.hasNext();) {
-            ScheduledFuture<?> future = iterator.next();
-            if (future.isDone()) {
-                logger.trace("Tidying up done future {}", future);
-                iterator.remove();
+        monitor.lock();
+        try {
+            for (Iterator<ScheduledFuture<?>> iterator = scheduledFutures.iterator(); iterator.hasNext();) {
+                ScheduledFuture<?> future = iterator.next();
+                if (future.isDone()) {
+                    logger.trace("Tidying up done future {}", future);
+                    iterator.remove();
+                }
             }
+        } finally {
+            monitor.unlock();
         }
     }
 
@@ -350,7 +369,7 @@ public abstract class AstroThingHandler extends BaseThingHandler {
     /**
      * Returns the daily calculation {@link Job} (cannot be {@code null})
      */
-    protected abstract Job getDailyJob();
+    protected abstract Job getDailyJob(TimeZone zone, Locale locale);
 
     public abstract @Nullable Position getPositionAt(ZonedDateTime date);
 
@@ -366,6 +385,6 @@ public abstract class AstroThingHandler extends BaseThingHandler {
 
     @Override
     public Collection<Class<? extends ThingHandlerService>> getServices() {
-        return Collections.singletonList(AstroActions.class);
+        return List.of(AstroActions.class);
     }
 }

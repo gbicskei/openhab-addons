@@ -7,7 +7,7 @@
 	<thing-type id="lw60t">
 		<label>LW60-T VentaAir Humidifier</label>
 		<description>Thing for Venta Air LW60-T Humidifiers</description>
-
+		<semantic-equipment-tag>Humidifier</semantic-equipment-tag>
 		<channels>
 			<channel id="power" typeId="system.power"/>
 			<channel id="fanSpeed" typeId="fanSpeed"/>
@@ -37,7 +37,7 @@
 	<thing-type id="generic">
 		<label>Generic Humidifier/Cleaner</label>
 		<description>Thing for Venta Air Humidifiers/Cleaners</description>
-
+		<semantic-equipment-tag>Humidifier</semantic-equipment-tag>
 		<channels>
 			<channel id="power" typeId="system.power"/>
 			<channel id="fanSpeed" typeId="fanSpeed"/>
@@ -49,6 +49,7 @@
 			<channel id="automatic" typeId="automatic"/>
 			<channel id="temperature" typeId="temperature"/>
 			<channel id="humidity" typeId="humidity"/>
+			<channel id="pm25" typeId="pm25"/>
 			<channel id="waterLevel" typeId="waterLevel"/>
 			<channel id="fanRPM" typeId="fanRPM"/>
 			<channel id="cleanMode" typeId="cleanMode"/>
@@ -56,6 +57,7 @@
 			<channel id="operationTime" typeId="operationTime"/>
 			<channel id="discReplaceTime" typeId="discReplaceTime"/>
 			<channel id="cleaningTime" typeId="cleaningTime"/>
+			<channel id="serviceTime" typeId="serviceTime"/>
 		</channels>
 
 		<representation-property>macAddress</representation-property>

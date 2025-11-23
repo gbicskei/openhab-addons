@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,19 +12,15 @@
  */
 package org.openhab.binding.mqtt.homeassistant.internal;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -39,12 +35,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.openhab.binding.mqtt.generic.MqttChannelStateDescriptionProvider;
 import org.openhab.binding.mqtt.generic.MqttChannelTypeProvider;
-import org.openhab.binding.mqtt.generic.TransformationServiceProvider;
 import org.openhab.binding.mqtt.handler.BrokerHandler;
+import org.openhab.binding.mqtt.homeassistant.generic.internal.MqttBindingConstants;
+import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.io.transport.mqtt.MqttBrokerConnection;
 import org.openhab.core.io.transport.mqtt.MqttMessageSubscriber;
 import org.openhab.core.test.java.JavaTest;
+import org.openhab.core.test.storage.VolatileStorageService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
@@ -54,19 +53,19 @@ import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
 import org.openhab.core.thing.binding.builder.BridgeBuilder;
 import org.openhab.core.thing.binding.builder.ThingBuilder;
+import org.openhab.core.thing.type.ChannelTypeRegistry;
+import org.openhab.core.thing.type.ThingType;
 import org.openhab.core.thing.type.ThingTypeBuilder;
 import org.openhab.core.thing.type.ThingTypeRegistry;
-import org.openhab.transform.jinja.internal.JinjaTransformationService;
-import org.openhab.transform.jinja.internal.profiles.JinjaTransformationProfile;
+import org.openhab.core.util.BundleResolver;
 
 /**
  * Abstract class for HomeAssistant unit tests.
  *
  * @author Anton Kharuzhy - Initial contribution
  */
-@SuppressWarnings({ "ConstantConditions" })
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.WARN)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @NonNullByDefault
 public abstract class AbstractHomeAssistantTests extends JavaTest {
     public static final String BINDING_ID = "mqtt";
@@ -77,37 +76,38 @@ public abstract class AbstractHomeAssistantTests extends JavaTest {
     public static final String BRIDGE_ID = UUID.randomUUID().toString();
     public static final ThingUID BRIDGE_UID = new ThingUID(BRIDGE_TYPE_UID, BRIDGE_ID);
 
-    public static final String HA_TYPE_ID = "homeassistant";
-    public static final String HA_TYPE_LABEL = "Homeassistant";
-    public static final ThingTypeUID HA_TYPE_UID = new ThingTypeUID(BINDING_ID, HA_TYPE_ID);
+    public static final String HA_TYPE_LABEL = "Home Assistant Thing";
+    public static final ThingTypeUID HA_TYPE_UID = new ThingTypeUID(BINDING_ID, "homeassistant_dynamic_type");
     public static final String HA_ID = UUID.randomUUID().toString();
-    public static final ThingUID HA_UID = new ThingUID(HA_TYPE_UID, HA_ID);
+    public static final ThingUID HA_UID = new ThingUID(MqttBindingConstants.HOMEASSISTANT_MQTT_THING, HA_ID);
+    public static final ThingType HA_THING_TYPE = ThingTypeBuilder
+            .instance(MqttBindingConstants.HOMEASSISTANT_MQTT_THING, HA_TYPE_LABEL).build();
+    protected static final HomeAssistantPythonBridge PYTHON = new HomeAssistantPythonBridge();
 
     protected @Mock @NonNullByDefault({}) MqttBrokerConnection bridgeConnection;
     protected @Mock @NonNullByDefault({}) ThingTypeRegistry thingTypeRegistry;
-    protected @Mock @NonNullByDefault({}) TransformationServiceProvider transformationServiceProvider;
 
-    @SuppressWarnings("NotNullFieldNotInitialized")
     protected @NonNullByDefault({}) MqttChannelTypeProvider channelTypeProvider;
+    protected @NonNullByDefault({}) MqttChannelStateDescriptionProvider stateDescriptionProvider;
+    protected @NonNullByDefault({}) ChannelTypeRegistry channelTypeRegistry;
 
     protected final Bridge bridgeThing = BridgeBuilder.create(BRIDGE_TYPE_UID, BRIDGE_UID).build();
     protected final BrokerHandler bridgeHandler = spy(new BrokerHandler(bridgeThing));
-    protected final Thing haThing = ThingBuilder.create(HA_TYPE_UID, HA_UID).withBridge(BRIDGE_UID).build();
+    protected Thing haThing = ThingBuilder.create(HA_TYPE_UID, HA_UID).withBridge(BRIDGE_UID).build();
     protected final ConcurrentMap<String, Set<MqttMessageSubscriber>> subscriptions = new ConcurrentHashMap<>();
 
-    private final JinjaTransformationService jinjaTransformationService = new JinjaTransformationService();
+    private @Mock @NonNullByDefault({}) TranslationProvider translationProvider;
+    private @Mock @NonNullByDefault({}) BundleResolver bundleResolver;
 
     @BeforeEach
     public void beforeEachAbstractHomeAssistantTests() {
         when(thingTypeRegistry.getThingType(BRIDGE_TYPE_UID))
                 .thenReturn(ThingTypeBuilder.instance(BRIDGE_TYPE_UID, BRIDGE_TYPE_LABEL).build());
-        when(thingTypeRegistry.getThingType(HA_TYPE_UID))
-                .thenReturn(ThingTypeBuilder.instance(HA_TYPE_UID, HA_TYPE_LABEL).build());
-        when(transformationServiceProvider
-                .getTransformationService(JinjaTransformationProfile.PROFILE_TYPE_UID.getId()))
-                        .thenReturn(jinjaTransformationService);
+        when(thingTypeRegistry.getThingType(MqttBindingConstants.HOMEASSISTANT_MQTT_THING)).thenReturn(HA_THING_TYPE);
 
-        channelTypeProvider = spy(new MqttChannelTypeProvider(thingTypeRegistry));
+        channelTypeProvider = spy(new MqttChannelTypeProvider(thingTypeRegistry, new VolatileStorageService()));
+        stateDescriptionProvider = spy(new MqttChannelStateDescriptionProvider(translationProvider, bundleResolver));
+        channelTypeRegistry = spy(new ChannelTypeRegistry());
 
         setupConnection();
 
@@ -126,7 +126,9 @@ public abstract class AbstractHomeAssistantTests extends JavaTest {
             final var subscriber = (MqttMessageSubscriber) invocation.getArgument(1);
 
             subscriptions.putIfAbsent(topic, ConcurrentHashMap.newKeySet());
-            subscriptions.get(topic).add(subscriber);
+            Set<MqttMessageSubscriber> subscribers = subscriptions.get(topic);
+            Objects.requireNonNull(subscribers); // Invariant, thanks to putIfAbsent above. To make compiler happy
+            subscribers.add(subscriber);
             return CompletableFuture.completedFuture(true);
         }).when(bridgeConnection).subscribe(any(), any());
 
@@ -154,6 +156,7 @@ public abstract class AbstractHomeAssistantTests extends JavaTest {
      * @param relativePath path from src/test/java/org/openhab/binding/mqtt/homeassistant/internal
      * @return path
      */
+    @SuppressWarnings("null")
     protected Path getResourcePath(String relativePath) {
         try {
             return Paths.get(AbstractHomeAssistantTests.class.getResource(relativePath).toURI());

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -17,10 +17,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * app. The meaning of the EcoTouch tags was provided by Waterkotte's technical
  * service (by an excerpt of a developer manual).
  *
- * @author Sebastian Held <sebastian.held@gmx.de> - Initial contribution
+ * @author Sebastian Held - Initial contribution
  * @since 1.5.0
  */
 
@@ -88,7 +93,7 @@ public class EcoTouchConnector {
         try {
             url = "http://" + ip + "/cgi/login?username=" + URLEncoder.encode(username, "UTF-8") + "&password="
                     + URLEncoder.encode(password, "UTF-8");
-            URL loginurl = new URL(url);
+            URL loginurl = URI.create(url).toURL();
             URLConnection connection = loginurl.openConnection();
             cookies = connection.getHeaderFields().get("Set-Cookie");
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -100,27 +105,28 @@ public class EcoTouchConnector {
             cause = e.toString();
         }
 
-        if (line2 != null && line2.trim().equals("#E_USER_DONT_EXIST")) {
+        if (line2 != null && "#E_USER_DONT_EXIST".equals(line2.trim())) {
             throw new IOException("Username does not exist.");
         }
-        if (line2 != null && line2.trim().equals("#E_PASS_DONT_MATCH")) {
+        if (line2 != null && "#E_PASS_DONT_MATCH".equals(line2.trim())) {
             throw new IOException("Password does not match.");
         }
-        if (line2 != null && line2.trim().equals("#E_TOO_MANY_USERS")) {
+        if (line2 != null && "#E_TOO_MANY_USERS".equals(line2.trim())) {
             throw new IOException("Too many users already logged in.");
         }
         if (cookies == null) {
-            if (cause == null)
+            if (cause == null) {
                 throw new IOException("Cannot login");
-            else
+            } else {
                 throw new IOException("Cannot login: " + cause);
+            }
         }
     }
 
     public void logout() {
         if (cookies != null) {
             try {
-                URL logouturl = new URL("http://" + ip + "/cgi/logout");
+                URL logouturl = URI.create("http://" + ip + "/cgi/logout").toURL();
                 logouturl.openConnection();
             } catch (Exception e) {
             }
@@ -157,7 +163,7 @@ public class EcoTouchConnector {
     public Map<String, String> getValues(Set<String> tags) throws Exception {
         final Integer maxNum = 100;
 
-        Map<String, String> result = new HashMap<String, String>();
+        Map<String, String> result = new HashMap<>();
         Integer counter = 1;
         StringBuilder query = new StringBuilder();
         Iterator<String> iter = tags.iterator();
@@ -191,12 +197,12 @@ public class EcoTouchConnector {
      */
     private Map<String, String> getValues(String url) throws Exception {
         trylogin(false);
-        Map<String, String> result = new HashMap<String, String>();
+        Map<String, String> result = new HashMap<>();
         int loginAttempt = 0;
         while (loginAttempt < 2) {
             BufferedReader reader = null;
             try {
-                URLConnection connection = new URL(url).openConnection();
+                URLConnection connection = URI.create(url).toURL().openConnection();
                 var localCookies = cookies;
                 if (localCookies != null) {
                     for (String cookie : localCookies) {
@@ -212,8 +218,9 @@ public class EcoTouchConnector {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String line2 = reader.readLine();
-                    if (line2 == null)
+                    if (line2 == null) {
                         break;
+                    }
                     String doubleline = line + "\n" + line2;
                     Matcher m = responsePattern.matcher(doubleline);
                     if (m.find()) {
@@ -237,8 +244,9 @@ public class EcoTouchConnector {
                 }
                 loginAttempt++;
             } finally {
-                if (reader != null)
+                if (reader != null) {
                     reader.close();
+                }
             }
         }
 
@@ -264,7 +272,7 @@ public class EcoTouchConnector {
         while (loginAttempt < 2) {
             BufferedReader reader = null;
             try {
-                URLConnection connection = new URL(url).openConnection();
+                URLConnection connection = URI.create(url).toURL().openConnection();
                 var localCookies = cookies;
                 if (localCookies != null) {
                     for (String cookie : localCookies) {
@@ -291,8 +299,9 @@ public class EcoTouchConnector {
                 }
                 loginAttempt++;
             } finally {
-                if (reader != null)
+                if (reader != null) {
                     reader.close();
+                }
             }
         }
 

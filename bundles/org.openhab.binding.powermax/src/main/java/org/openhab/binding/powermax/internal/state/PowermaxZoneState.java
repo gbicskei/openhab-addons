@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,14 +14,17 @@ package org.openhab.binding.powermax.internal.state;
 
 import static org.openhab.binding.powermax.internal.PowermaxBindingConstants.*;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.library.types.OpenClosedType;
+import org.openhab.core.types.UnDefType;
 
 /**
  * A class to store the state of a zone
  *
  * @author Laurent Garnier - Initial contribution
  */
+@NonNullByDefault
 public class PowermaxZoneState extends PowermaxStateContainer {
 
     public BooleanValue tripped = new BooleanValue(this, TRIPPED, OpenClosedType.OPEN, OpenClosedType.CLOSED);
@@ -36,12 +39,10 @@ public class PowermaxZoneState extends PowermaxStateContainer {
     public StringValue lastMessage = new StringValue(this, ZONE_LAST_MESSAGE);
     public DateTimeValue lastMessageTime = new DateTimeValue(this, ZONE_LAST_MESSAGE_TIME);
 
-    public DynamicValue<Boolean> locked = new DynamicValue<>(this, LOCKED, () -> {
-        return armed.getValue();
-    }, () -> {
+    public DynamicValue<Boolean> locked = new DynamicValue<>(this, LOCKED, () -> armed.getValue(), () -> {
         Boolean isArmed = armed.getValue();
         if (isArmed == null) {
-            return null;
+            return UnDefType.NULL;
         }
         return isArmed ? OpenClosedType.CLOSED : OpenClosedType.OPEN;
     });
@@ -51,7 +52,7 @@ public class PowermaxZoneState extends PowermaxStateContainer {
     }
 
     public boolean isLastTripBeforeTime(long refTime) {
-        return Boolean.TRUE.equals(tripped.getValue()) && (lastTripped.getValue() != null)
-                && (lastTripped.getValue() < refTime);
+        Long lastTrippedValue = lastTripped.getValue();
+        return Boolean.TRUE.equals(tripped.getValue()) && (lastTrippedValue != null) && (lastTrippedValue < refTime);
     }
 }

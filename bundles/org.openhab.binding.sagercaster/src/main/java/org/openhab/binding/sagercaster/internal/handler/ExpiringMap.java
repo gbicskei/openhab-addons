@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,8 +12,9 @@
  */
 package org.openhab.binding.sagercaster.internal.handler;
 
+import java.time.Duration;
+import java.util.NavigableMap;
 import java.util.Optional;
-import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -26,25 +27,35 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
  */
 @NonNullByDefault
 class ExpiringMap<T> {
-    private final SortedMap<Long, T> values = new TreeMap<>();
-    private Optional<T> agedValue = Optional.empty();
-    private long eldestAge = 0;
+    private final NavigableMap<Long, T> values = new TreeMap<>();
+    private final long windowMillis;
 
-    public void setObservationPeriod(long eldestAge) {
-        this.eldestAge = eldestAge;
+    public ExpiringMap(Duration duration) {
+        this.windowMillis = duration.toMillis();
     }
 
-    public void put(T newValue) {
+    /**
+     * @param newValue - added to the Map
+     * @return the eldest value if it existed before insertion
+     */
+    public Optional<T> put(T newValue) {
         long now = System.currentTimeMillis();
-        values.put(now, newValue);
-        Optional<Long> eldestKey = values.keySet().stream().filter(key -> key < now - eldestAge).findFirst();
-        if (eldestKey.isPresent()) {
-            agedValue = Optional.ofNullable(values.get(eldestKey.get()));
-            values.entrySet().removeIf(map -> map.getKey() <= eldestKey.get());
+
+        // removes all entries older than the configured window duration
+        long cutoff = now - windowMillis;
+        while (!values.isEmpty() && values.firstKey() < cutoff) {
+            values.pollFirstEntry();
         }
+
+        values.put(now, newValue);
+        return Optional.ofNullable(values.size() < 2 ? null : values.firstEntry().getValue());
     }
 
-    public Optional<T> getAgedValue() {
-        return agedValue;
+    /**
+     * @return age of the eldest element in minutes
+     */
+    public long getDataAgeInMin() {
+        long now = System.currentTimeMillis();
+        return Duration.ofMillis(values.isEmpty() ? 0 : now - values.firstKey()).toMinutes();
     }
 }

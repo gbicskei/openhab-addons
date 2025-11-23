@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -13,10 +13,12 @@
 package org.openhab.binding.avmfritz.internal.discovery;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 import static org.openhab.binding.avmfritz.internal.AVMFritzBindingConstants.*;
 import static org.openhab.core.thing.Thing.*;
 
 import java.io.StringReader;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -29,6 +31,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.openhab.binding.avmfritz.internal.dto.AVMFritzBaseModel;
 import org.openhab.binding.avmfritz.internal.dto.DeviceListModel;
@@ -38,6 +41,8 @@ import org.openhab.core.config.discovery.DiscoveryListener;
 import org.openhab.core.config.discovery.DiscoveryResult;
 import org.openhab.core.config.discovery.DiscoveryResultFlag;
 import org.openhab.core.config.discovery.DiscoveryService;
+import org.openhab.core.i18n.LocaleProvider;
+import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
 
@@ -48,6 +53,7 @@ import org.openhab.core.thing.ThingUID;
  * @author Ulrich Mertin - Added support for HAN-FUN blinds
  */
 @NonNullByDefault
+@Disabled("Often blocks indefinitely, see: https://github.com/openhab/openhab-addons/issues/16536")
 public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTest {
 
     private static final ThingUID BRIGE_THING_ID = new ThingUID("avmfritz:fritzbox:1");
@@ -67,7 +73,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         }
 
         @Override
-        public @Nullable Collection<ThingUID> removeOlderResults(DiscoveryService source, long timestamp,
+        public @Nullable Collection<ThingUID> removeOlderResults(DiscoveryService source, Instant timestamp,
                 @Nullable Collection<ThingTypeUID> thingTypeUIDs, @Nullable ThingUID bridgeUID) {
             return List.of();
         }
@@ -77,7 +83,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
     @BeforeEach
     public void setUp() {
         super.setUp();
-        discovery = new AVMFritzDiscoveryService();
+        discovery = new AVMFritzDiscoveryService(mock(LocaleProvider.class), mock(TranslationProvider.class));
         discovery.setThingHandler(bridgeHandler);
         discovery.addDiscoveryListener(listener);
     }
@@ -89,22 +95,30 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
 
     @Test
     public void correctSupportedTypes() {
-        assertEquals(15, discovery.getSupportedThingTypes().size());
+        assertEquals(23, discovery.getSupportedThingTypes().size());
         assertTrue(discovery.getSupportedThingTypes().contains(DECT100_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT200_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT210_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT300_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT301_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(DECT302_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT400_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(DECT440_THING_TYPE));
-        assertTrue(discovery.getSupportedThingTypes().contains(PL546E_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(DECT500_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(POWERLINE546E_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(COMETDECT_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_CONTACT_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_SWITCH_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_ON_OFF_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_BLINDS_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_COLOR_BULB_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_DIMMABLE_BULB_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_SENSOR_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(HAN_FUN_HOST_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(GROUP_BLINDS_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(GROUP_HEATING_THING_TYPE));
         assertTrue(discovery.getSupportedThingTypes().contains(GROUP_SWITCH_THING_TYPE));
+        assertTrue(discovery.getSupportedThingTypes().contains(SMART_ENERGY_250_THING_TYPE));
     }
 
     @SuppressWarnings("null")
@@ -176,9 +190,69 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610954669", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!DECT Repeater 100", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!DECT Repeater 100", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610954669", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.86", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
+        assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
+
+        final String deviceNotPresentXml = xml.replace("<present>1</present>", "<present>0</present>");
+        devices = (DeviceListModel) u.unmarshal(new StringReader(deviceNotPresentXml));
+        assertNotNull(devices);
+        assertEquals(1, devices.getDevicelist().size());
+
+        device = devices.getDevicelist().get(0);
+        assertNotNull(device);
+        assertEquals(0, device.getPresent());
+
+        discovery.onDeviceAdded(device);
+        assertNull(discoveryResult);
+    }
+
+    @SuppressWarnings("null")
+    @Test
+    public void validSmart250DiscoveryResult() throws JAXBException, XMLStreamException {
+        //@formatter:off
+        final String xml = """
+                <devicelist version="1">
+                    <device identifier="12345-6789012-0" id="23" functionbitmask="130" fwversion="03.65" manufacturer="AVM" productname="FRITZ!Smart Energy 250">
+                        <present>1</present>
+                        <txbusy>0</txbusy>
+                        <name>FRITZ!Smart Energy 250 #8</name>
+                        <battery>90</battery>
+                        <batterylow>0</batterylow>
+                        <powermeter>
+                            <voltage>0</voltage>
+                            <power>532000</power>
+                            <energy>5921</energy>
+                        </powermeter>
+                    </device>
+                </devicelist>
+            """;
+        //@formatter:on
+
+        XMLStreamReader xsr = JAXBUtils.XMLINPUTFACTORY.createXMLStreamReader(new StringReader(xml));
+        Unmarshaller u = JAXBUtils.JAXBCONTEXT_DEVICES.createUnmarshaller();
+        DeviceListModel devices = u.unmarshal(xsr, DeviceListModel.class).getValue();
+
+        assertNotNull(devices);
+        assertEquals(1, devices.getDevicelist().size());
+
+        AVMFritzBaseModel device = devices.getDevicelist().get(0);
+        assertNotNull(device);
+        assertEquals(1, device.getPresent());
+
+        discovery.onDeviceAdded(device);
+        assertNotNull(discoveryResult);
+
+        assertEquals(DiscoveryResultFlag.NEW, discoveryResult.getFlag());
+        assertEquals(new ThingUID("avmfritz:FRITZ_Smart_Energy_250:1:12345_6789012_0"), discoveryResult.getThingUID());
+        assertEquals(SMART_ENERGY_250_THING_TYPE, discoveryResult.getThingTypeUID());
+        assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
+        assertEquals("12345-6789012-0", discoveryResult.getProperties().get(CONFIG_AIN));
+        assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
+        assertEquals("FRITZ!Smart Energy 250", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
+        assertEquals("12345-6789012-0", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
+        assertEquals("03.65", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
 
         final String deviceNotPresentXml = xml.replace("<present>1</present>", "<present>0</present>");
@@ -241,7 +315,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610000434", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!DECT 200", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!DECT 200", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610000434", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.83", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -294,7 +368,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610000434", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!DECT 210", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!DECT 210", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610000434", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.83", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -350,7 +424,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610000435", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("Comet DECT", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("Comet DECT", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610000435", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.50", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -406,7 +480,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610000435", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!DECT 300", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!DECT 300", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610000435", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.50", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -462,7 +536,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("087610000435", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!DECT 301", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!DECT 301", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("087610000435", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("03.50", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -507,11 +581,11 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
 
         assertEquals(DiscoveryResultFlag.NEW, discoveryResult.getFlag());
         assertEquals(new ThingUID("avmfritz:FRITZ_Powerline_546E:1:5C_49_79_F0_A3_84"), discoveryResult.getThingUID());
-        assertEquals(PL546E_THING_TYPE, discoveryResult.getThingTypeUID());
+        assertEquals(POWERLINE546E_THING_TYPE, discoveryResult.getThingTypeUID());
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("5C:49:79:F0:A3:84", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("FRITZ!Powerline 546E", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("FRITZ!Powerline 546E", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("5C:49:79:F0:A3:84", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("06.92", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -584,7 +658,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("119340059578-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x0feb", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("119340059578-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -630,7 +704,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("119340059578-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x0feb", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("119340059578-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -676,7 +750,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("119340059578-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x0feb", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("119340059578-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -722,7 +796,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("113240059952-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x2c3c", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("113240059952-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -768,7 +842,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("119340059578-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x0feb", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("HAN-FUN", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("119340059578-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -824,7 +898,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("142760503450-1", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("0x37c4", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("Rollotron 1213", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("Rollotron 1213", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("142760503450-1", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("0.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals(CONFIG_AIN, discoveryResult.getRepresentationProperty());
@@ -884,7 +958,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("F0:A3:7F-900", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("F0:A3:7F-900", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("1.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals("1000", discoveryResult.getProperties().get(PROPERTY_MASTER));
@@ -939,7 +1013,7 @@ public class AVMFritzDiscoveryServiceOSGiTest extends AVMFritzThingHandlerOSGiTe
         assertEquals(BRIGE_THING_ID, discoveryResult.getBridgeUID());
         assertEquals("F0:A3:7F-900", discoveryResult.getProperties().get(CONFIG_AIN));
         assertEquals("AVM", discoveryResult.getProperties().get(PROPERTY_VENDOR));
-        assertEquals("", discoveryResult.getProperties().get(PRODUCT_NAME));
+        assertEquals("", discoveryResult.getProperties().get(PROPERTY_PRODUCT_NAME));
         assertEquals("F0:A3:7F-900", discoveryResult.getProperties().get(PROPERTY_SERIAL_NUMBER));
         assertEquals("1.0", discoveryResult.getProperties().get(PROPERTY_FIRMWARE_VERSION));
         assertEquals("1000", discoveryResult.getProperties().get(PROPERTY_MASTER));

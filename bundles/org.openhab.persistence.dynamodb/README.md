@@ -5,9 +5,9 @@ Query functionality is also fully supported.
 
 Features:
 
-* Writing/reading information to relational database systems
-* Configurable database table names
-* Automatic table creation
+- Writing/reading information to relational database systems
+- Configurable database table names
+- Automatic table creation
 
 ## Disclaimer
 
@@ -15,11 +15,7 @@ This service is provided "AS IS", and the user takes full responsibility of any 
 
 ## Table of Contents
 
-{::options toc_levels="2..4"/}
-<!-- markdownlint-disable-next-line ul-style -->
-- TOC
-
-{:toc}
+[[toc]]
 
 ## Prerequisites
 
@@ -35,20 +31,29 @@ Please also note possible [Free Tier](https://aws.amazon.com/free/) benefits.
 <!-- markdownlint-disable-next-line no-emphasis-as-heading -->
 **Login to AWS web console**
 
-* [Sign up](https://aws.amazon.com/) for Amazon AWS.
-* Select the AWS region in the [AWS console](https://console.aws.amazon.com/) using [these instructions](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/getting-started.html#select-region). Note the region identifier in the URL (e.g. `https://eu-west-1.console.aws.amazon.com/console/home?region=eu-west-1` means that region id is `eu-west-1`).
+- [Sign up](https://aws.amazon.com/) for Amazon AWS.
+- Select the AWS region in the [AWS console](https://console.aws.amazon.com/) using [these instructions](https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/getting-started.html#select-region). Note the region identifier in the URL (e.g. `https://eu-west-1.console.aws.amazon.com/console/home?region=eu-west-1` means that region id is `eu-west-1`).
 
 <!-- markdownlint-disable-next-line no-emphasis-as-heading -->
 **Create policy controlling permissions for AWS user**
 
-  1. Open Services -> IAM -> Policies
-  2. Click _Create policy_
-  3. Open _JSON_ tab and input the below policy code, describing the permissions needed
+Here we create AWS IAM Policy to limit exposure to AWS resources.
+This way, openHAB DynamoDB addon has limited access to AWS, even if credentials would be compromised.
 
-**Note:** The below policy assumes that `eu-west-1` region is used, the new table schema is used, and the default table name of `openhab` is used.
-Modify the policy accordingly if needed.
+**Note:** this policy is only valid for the new table schema.
+New table schema is the default for fresh openHAB installations and for users that are taking DynamoDB into use for the first time.
+For users with old table schema, one can use pre-existing policy `AmazonDynamoDBFullAccess` (although it gives wider-than-necessary permissions).
 
-**Note 2:** As a more simple alternative, one can use pre-existing policy `AmazonDynamoDBFullAccess`, although the policy grants the openHAB user wider-than-necessary permissions.
+  1. Open Services menu, and search for _IAM_.
+  1. From top right, press the small arrow on top right corner close to your name. Copy the _Account ID_ to clipboard by pressing the small "copy" icon
+  ![AWS Account ID](doc/aws_account_id.png)
+  1. In IAM dialog, select _Policies_ from the menu on the left
+  1. Click _Create policy_
+  1. Open _JSON_ tab and input the below policy code.
+  1. Make the below the changes to the policy JSON `Resource` section
+
+- Modify the AWS account id from `055251986555` to to the one you have on clipboard (see step 2 above)
+- If you are on some other region than `eu-west-1`, change the entry accordingly
 
 ```json
 {
@@ -75,8 +80,8 @@ Modify the policy accordingly if needed.
                 "dynamodb:UpdateTable"
             ],
             "Resource": [
-                "arn:aws:dynamodb:eu-west-1:084669220525:table/openhab",
-                "arn:aws:dynamodb:eu-west-1:084669220525:table/openhab/index/*"
+                "arn:aws:dynamodb:eu-west-1:055251986555:table/openhab",
+                "arn:aws:dynamodb:eu-west-1:055251986555:table/openhab/index/*"
             ]
         },
         {
@@ -95,28 +100,33 @@ Modify the policy accordingly if needed.
 <!-- markdownlint-disable ol-prefix -->
   4. Click _Next: Tags_
   5. Click _Next: Review_
-  6. Enter `openhab-dynamodb-policy` as the _Name_ol-prefix -->
+  6. Enter `openhab-dynamodb-policy` as the _Name_
   7. Click _Create policy_ to finish policy creation
 <!-- markdownlint-enable ol-prefix -->
 
 <!-- markdownlint-disable-next-line no-emphasis-as-heading -->
-**Create user for openHAB with IAM**
+**Create user for openHAB**
+
+Here we create AWS user with programmatic access to the DynamoDB.
+We associate the user with the policy created above.
 
   1. Open _Services_ -> _IAM_ -> _Users_ -> _Add users_. Enter `openhab` as _User name_, and tick _Programmatic access_
-  2. Click _Next: Permissions_
-  3. Select _Attach existing policies directly_, and search policies with `openhab-dynamodb-policy`. Tick the `openhab-dynamodb-policy` and proceed with _Next: Tags_
-  4. Click _Next: review_
-  5. Click _Create user_
-  6. Record the _Access key ID_ and _Secret access key_
+  1. Click _Next: Permissions_
+  1. Select _Attach existing policies directly_, and search policies with `openhab-dynamodb-policy`. Tick the `openhab-dynamodb-policy` and proceed with _Next: Tags_
+  1. Click _Next: review_
+  1. Click _Create user_
+  1. Record the _Access key ID_ and _Secret access key_
 
 ## Configuration
 
 This service can be configured using the MainUI or using persistence configuration file `services/dynamodb.cfg`.
 
-In order to configure the persistence service, you need to configure two things:
+In order to configure the persistence service, you need to configure AWS credentials to access DynamoDB.
 
-1. Table schema revision to use
-2. AWS credentials to access DynamoDB
+For new users, the other default settings are OK.
+
+For DynamoDB persistence users with data stored with openHAB 3.1.0 or earlier, you need to decide whether you opt in to "new" more optimized table schema, or stay with "legacy".
+See below for details.
 
 ### Table schema
 
@@ -224,10 +234,10 @@ Similar caveat applies for DynamoDB Time to Live (TTL) setting `expireDays`.
 
 ### Updating Amazon SDK
 
-1. Clean `lib/*`
-2. Update SDK version in `scripts/fetch_sdk_pom.xml`. You can use the [maven online repository browser](https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-dynamodb) to find the latest version available online.
-3. `scripts/fetch_sdk.sh`
-4. Copy printed dependencies to `pom.xml`
+1. Update SDK version and `netty-nio-client` version in `scripts/fetch_sdk_pom.xml`. You can use the [maven online repository browser](https://mvnrepository.com/artifact/software.amazon.awssdk/dynamodb-enhanced) to find the latest version available online.
+1. `scripts/fetch_sdk.sh`
+1. Copy printed dependencies to `pom.xml`. If necessary, adjust feature.xml, bnd.importpackage and dep.noembedding as well (probably rarely needed but [it happens](https://aws.amazon.com/blogs/developer/the-aws-sdk-for-java-2-17-removes-its-external-dependency-on-jackson/)).
+1. Check & update `NOTICE` file with all the updated, new and removed dependencies.
 
 After these changes, it's good practice to run integration tests (against live AWS DynamoDB) in `org.openhab.persistence.dynamodb.test` bundle.
 See README.md in the test bundle for more information how to execute the tests.
@@ -240,11 +250,15 @@ One can configure AWS credentials to run the test against real AWS DynamoDB for 
 Eclipse instructions
 
 1. Run all tests (in package org.openhab.persistence.dynamodb.internal) as JUnit Tests
-2. Configure the run configuration, and open Arguments sheet
-3. In VM arguments, provide the credentials for AWS
+1. Configure the run configuration, and open Arguments sheet
+1. In VM arguments, provide the credentials for AWS
 
 ```bash
 -DDYNAMODBTEST_REGION=REGION-ID
 -DDYNAMODBTEST_ACCESS=ACCESS-KEY
 -DDYNAMODBTEST_SECRET=SECRET
+
+--add-opens=java.base/java.lang=ALL-UNNAMED
 ```
+
+The `--add-opens` parameter is necessary also with the local temporary DynamoDB server, otherwise the mockito will fail at runtime with (`java.base does not "opens java.lang" to unnamed module`).

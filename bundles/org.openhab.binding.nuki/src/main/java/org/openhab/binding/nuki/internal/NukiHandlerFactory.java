@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.nuki.internal;
 
+import java.util.UUID;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
@@ -21,12 +23,12 @@ import org.openhab.binding.nuki.internal.dataexchange.NukiApiServlet;
 import org.openhab.binding.nuki.internal.handler.NukiBridgeHandler;
 import org.openhab.binding.nuki.internal.handler.NukiOpenerHandler;
 import org.openhab.binding.nuki.internal.handler.NukiSmartLockHandler;
-import org.openhab.core.config.core.Configuration;
 import org.openhab.core.id.InstanceUUID;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.net.HttpServiceUtil;
 import org.openhab.core.net.NetworkAddressService;
 import org.openhab.core.thing.Bridge;
+import org.openhab.core.thing.ManagedThingProvider;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
@@ -45,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * handlers.
  *
  * @author Markus Katter - Initial contribution
- * @contributer Jan Vybíral - Improved thing id generation
+ * @author Jan Vybíral - Improved thing id generation
  */
 @Component(service = ThingHandlerFactory.class, configurationPid = "binding.nuki")
 @NonNullByDefault
@@ -55,14 +57,17 @@ public class NukiHandlerFactory extends BaseThingHandlerFactory {
 
     private final HttpClient httpClient;
     private final NetworkAddressService networkAddressService;
+    private final ManagedThingProvider managedThingProvider;
     private NukiApiServlet nukiApiServlet;
 
     @Activate
     public NukiHandlerFactory(@Reference HttpService httpService, @Reference final HttpClientFactory httpClientFactory,
-            @Reference NetworkAddressService networkAddressService) {
+            @Reference NetworkAddressService networkAddressService,
+            @Reference ManagedThingProvider managedThingProvider) {
         this.httpClient = httpClientFactory.getCommonHttpClient();
         this.networkAddressService = networkAddressService;
         this.nukiApiServlet = new NukiApiServlet(httpService);
+        this.managedThingProvider = managedThingProvider;
     }
 
     @Override
@@ -73,6 +78,7 @@ public class NukiHandlerFactory extends BaseThingHandlerFactory {
     @Override
     protected @Nullable ThingHandler createHandler(Thing thing) {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
+        boolean readOnly = managedThingProvider.get(thing.getUID()) == null;
 
         if (NukiBindingConstants.THING_TYPE_BRIDGE_UIDS.contains(thingTypeUID)) {
             String callbackUrl = createCallbackUrl(InstanceUUID.get());
@@ -80,17 +86,12 @@ public class NukiHandlerFactory extends BaseThingHandlerFactory {
             nukiApiServlet.add(nukiBridgeHandler);
             return nukiBridgeHandler;
         } else if (NukiBindingConstants.THING_TYPE_SMARTLOCK_UIDS.contains(thingTypeUID)) {
-            return new NukiSmartLockHandler(thing);
+            return new NukiSmartLockHandler(thing, readOnly);
         } else if (NukiBindingConstants.THING_TYPE_OPENER_UIDS.contains(thingTypeUID)) {
-            return new NukiOpenerHandler(thing);
+            return new NukiOpenerHandler(thing, readOnly);
         }
         logger.warn("No valid Handler found for Thing[{}]!", thingTypeUID);
         return null;
-    }
-
-    @Override
-    protected @Nullable Thing createThing(ThingTypeUID thingTypeUID, Configuration configuration, ThingUID thingUID) {
-        return super.createThing(thingTypeUID, configuration, thingUID);
     }
 
     @Override
@@ -102,12 +103,12 @@ public class NukiHandlerFactory extends BaseThingHandlerFactory {
     public void unregisterHandler(Thing thing) {
         super.unregisterHandler(thing);
         ThingHandler handler = thing.getHandler();
-        if (handler instanceof NukiBridgeHandler) {
-            nukiApiServlet.remove((NukiBridgeHandler) handler);
+        if (handler instanceof NukiBridgeHandler bridgeHandler) {
+            nukiApiServlet.remove(bridgeHandler);
         }
     }
 
-    private @Nullable String createCallbackUrl(String id) {
+    private @Nullable String createCallbackUrl(@Nullable String id) {
         final String ipAddress = networkAddressService.getPrimaryIpv4HostAddress();
         if (ipAddress == null) {
             logger.warn("No network interface could be found to get callback address");
@@ -119,7 +120,8 @@ public class NukiHandlerFactory extends BaseThingHandlerFactory {
             logger.warn("Cannot find port of the http service.");
             return null;
         }
-        String callbackUrl = NukiLinkBuilder.callbackUri(ipAddress, port, id).toString();
+        String callbackUrl = NukiLinkBuilder
+                .callbackUri(ipAddress, port, id != null ? id : UUID.randomUUID().toString()).toString();
         logger.trace("callbackUrl[{}]", callbackUrl);
         return callbackUrl;
     }

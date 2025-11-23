@@ -15,10 +15,6 @@
 			<channel id="press" typeId="button_press"/>
 			<channel id="activated_event" typeId="button_activated"/>
 		</channels>
-		<properties>
-			<property name="name"/>
-			<property name="area"/>
-		</properties>
 		<representation-property>number</representation-property>
 		<config-description>
 			<parameter name="number" type="integer" required="true">
@@ -34,6 +30,10 @@
 		<label>Button Press</label>
 		<description>Sends a button event to the controller.</description>
 		<category>Switch</category>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="button_activated">

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,7 +12,6 @@
  */
 package org.openhab.binding.linky.internal.dto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -30,23 +29,25 @@ public class AuthData {
             public @Nullable String name;
             public @Nullable Object value;
 
+            public NameValuePair(String name, Object value) {
+                this.name = name;
+                this.value = value;
+            }
+
             public @Nullable String valueAsString() {
-                if (value instanceof String) {
-                    return (String) value;
-                }
-                return null;
+                return (value instanceof String stringValue) ? stringValue : null;
             }
         }
 
         public @Nullable String type;
 
-        public List<NameValuePair> output = new ArrayList<>();
-        public List<NameValuePair> input = new ArrayList<>();
+        public List<NameValuePair> output = List.of();
+        public List<NameValuePair> input = List.of();
     }
 
     public @Nullable String authId;
     public @Nullable String template;
     public @Nullable String stage;
     public @Nullable String header;
-    public List<AuthDataCallBack> callbacks = new ArrayList<>();
+    public List<AuthDataCallBack> callbacks = List.of();
 }

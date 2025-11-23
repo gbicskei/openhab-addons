@@ -8,6 +8,10 @@
 		<item-type>Number</item-type>
 		<label>Fan Speed</label>
 		<description>Speed of the ventilation fan (0-5)</description>
+		<tags>
+			<tag>Control</tag>
+			<tag>Speed</tag>
+		</tags>
 		<state readOnly="false">
 			<options>
 				<option value="0">Off</option>
@@ -25,6 +29,10 @@
 		<label>Target Humidity</label>
 		<description>Target Humidity (30-70)</description>
 		<category>Humidity</category>
+		<tags>
+			<tag>Setpoint</tag>
+			<tag>Humidity</tag>
+		</tags>
 		<state readOnly="false">
 			<options>
 				<option value="30">30 %</option>
@@ -67,12 +75,20 @@
 		<item-type>Switch</item-type>
 		<label>Sleep Mode</label>
 		<description>Sleep Mode</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="boost">
 		<item-type>Switch</item-type>
 		<label>Boost</label>
 		<description>Boost</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Mode</tag>
+		</tags>
 	</channel-type>
 
 	<channel-type id="childLock">
@@ -92,14 +108,33 @@
 		<label>Temperature</label>
 		<description>Current Temperature</description>
 		<category>Temperature</category>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Temperature</tag>
+		</tags>
 		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="humidity">
-		<item-type>Number:Dimenionsless</item-type>
+		<item-type unitHint="%">Number:Dimensionless</item-type>
 		<label>Humidity</label>
 		<description>Current Humidity</description>
 		<category>Humidity</category>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Humidity</tag>
+		</tags>
+		<state pattern="%.1f %unit%" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="pm25">
+		<item-type>Number:Density</item-type>
+		<label>Air Quality</label>
+		<description>Current Air Quality measured in PM 2.5</description>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>ParticulateMatter</tag>
+		</tags>
 		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
@@ -107,12 +142,17 @@
 		<item-type>Number</item-type>
 		<label>Water Level</label>
 		<description>Water Level</description>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Water</tag>
+		</tags>
 		<state readOnly="true">
 			<options>
 				<option value="0">Critical</option>
 				<option value="1">Refill tank</option>
 				<option value="2">OK</option>
 				<option value="3">Full</option>
+				<option value="4">Max</option>
 			</options>
 		</state>
 	</channel-type>
@@ -121,6 +161,10 @@
 		<item-type>Number</item-type>
 		<label>Fan RPM</label>
 		<description>Fan RPM</description>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Speed</tag>
+		</tags>
 		<state pattern="%d RPM" readOnly="true"/>
 	</channel-type>
 
@@ -149,6 +193,13 @@
 		<item-type>Number:Time</item-type>
 		<label>Cleaning Time</label>
 		<description>Time until next cleaning (in hours)</description>
+		<state pattern="%d" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="serviceTime">
+		<item-type>Number:Time</item-type>
+		<label>Service Time</label>
+		<description>Service time in minutes</description>
 		<state pattern="%d" readOnly="true"/>
 	</channel-type>
 

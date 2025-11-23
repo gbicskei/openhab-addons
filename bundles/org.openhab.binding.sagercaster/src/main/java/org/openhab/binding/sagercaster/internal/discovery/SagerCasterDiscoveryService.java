@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,10 +14,6 @@ package org.openhab.binding.sagercaster.internal.discovery;
 
 import static org.openhab.binding.sagercaster.internal.SagerCasterBindingConstants.*;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -26,10 +22,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.config.discovery.AbstractDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResultBuilder;
 import org.openhab.core.config.discovery.DiscoveryService;
+import org.openhab.core.i18n.LocaleProvider;
 import org.openhab.core.i18n.LocationProvider;
+import org.openhab.core.i18n.TranslationProvider;
 import org.openhab.core.library.types.PointType;
-import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.ThingUID;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
@@ -43,49 +41,44 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 @Component(service = DiscoveryService.class, configurationPid = "discovery.sagercaster")
 public class SagerCasterDiscoveryService extends AbstractDiscoveryService {
-    private final Logger logger = LoggerFactory.getLogger(SagerCasterDiscoveryService.class);
     private static final int DISCOVER_TIMEOUT_SECONDS = 30;
     private static final int LOCATION_CHANGED_CHECK_INTERVAL = 60;
-    private @NonNullByDefault({}) LocationProvider locationProvider;
-    private @NonNullByDefault({}) ScheduledFuture<?> sagerCasterDiscoveryJob;
-    private @Nullable PointType previousLocation;
+    private static final ThingUID SAGER_CASTER_THING = new ThingUID(THING_TYPE_SAGERCASTER, LOCAL);
 
-    private static final ThingUID sagerCasterThing = new ThingUID(THING_TYPE_SAGERCASTER, LOCAL);
+    private final Logger logger = LoggerFactory.getLogger(SagerCasterDiscoveryService.class);
+    private final LocationProvider locationProvider;
+
+    private @Nullable ScheduledFuture<?> discoveryJob;
+    private @Nullable PointType previousLocation;
 
     /**
      * Creates a SagerCasterDiscoveryService with enabled autostart.
      */
-    public SagerCasterDiscoveryService() {
-        super(new HashSet<>(Arrays.asList(new ThingTypeUID(BINDING_ID, "-"))), DISCOVER_TIMEOUT_SECONDS, true);
-    }
-
-    @Override
-    protected void activate(@Nullable Map<String, Object> configProperties) {
-        super.activate(configProperties);
-    }
-
-    @Override
-    protected void modified(@Nullable Map<String, Object> configProperties) {
-        super.modified(configProperties);
+    @Activate
+    public SagerCasterDiscoveryService(final @Reference LocaleProvider localeProvider,
+            final @Reference TranslationProvider i18nProvider, final @Reference LocationProvider locationProvider) {
+        super(SUPPORTED_THING_TYPES_UIDS, DISCOVER_TIMEOUT_SECONDS, true);
+        this.locationProvider = locationProvider;
+        this.localeProvider = localeProvider;
+        this.i18nProvider = i18nProvider;
     }
 
     @Override
     protected void startScan() {
         logger.debug("Starting Sager Weathercaster discovery scan");
-        PointType location = locationProvider.getLocation();
-        if (location == null) {
+        if (locationProvider.getLocation() instanceof PointType location) {
+            createResults(location);
+        } else {
             logger.debug("LocationProvider.getLocation() is not set -> Will not provide any discovery results");
-            return;
         }
-        createResults(location);
     }
 
     @Override
     protected void startBackgroundDiscovery() {
-        if (sagerCasterDiscoveryJob == null) {
-            sagerCasterDiscoveryJob = scheduler.scheduleWithFixedDelay(() -> {
-                PointType currentLocation = locationProvider.getLocation();
-                if (currentLocation != null && !Objects.equals(currentLocation, previousLocation)) {
+        if (discoveryJob == null) {
+            discoveryJob = scheduler.scheduleWithFixedDelay(() -> {
+                if (locationProvider.getLocation() instanceof PointType currentLocation
+                        && !currentLocation.equals(previousLocation)) {
                     logger.debug("Location has been changed from {} to {}: Creating new discovery results",
                             previousLocation, currentLocation);
                     createResults(currentLocation);
@@ -100,27 +93,17 @@ public class SagerCasterDiscoveryService extends AbstractDiscoveryService {
     @Override
     protected void stopBackgroundDiscovery() {
         logger.debug("Stopping Sager Weathercaster background discovery");
-        if (sagerCasterDiscoveryJob != null && !sagerCasterDiscoveryJob.isCancelled()) {
-            if (sagerCasterDiscoveryJob.cancel(true)) {
-                sagerCasterDiscoveryJob = null;
+        if (discoveryJob instanceof ScheduledFuture localJob && !localJob.isCancelled()) {
+            if (localJob.cancel(true)) {
+                discoveryJob = null;
                 logger.debug("Stopped SagerCaster device background discovery");
             }
         }
     }
 
     public void createResults(PointType location) {
-        String propGeolocation;
-        propGeolocation = String.format("%s,%s", location.getLatitude(), location.getLongitude());
-        thingDiscovered(DiscoveryResultBuilder.create(sagerCasterThing).withLabel("Local Sager Weathercaster")
+        String propGeolocation = "%s,%s".formatted(location.getLatitude(), location.getLongitude());
+        thingDiscovered(DiscoveryResultBuilder.create(SAGER_CASTER_THING).withLabel("Local Weather Forecast")
                 .withRepresentationProperty(CONFIG_LOCATION).withProperty(CONFIG_LOCATION, propGeolocation).build());
-    }
-
-    @Reference
-    protected void setLocationProvider(LocationProvider locationProvider) {
-        this.locationProvider = locationProvider;
-    }
-
-    protected void unsetLocationProvider(LocationProvider locationProvider) {
-        this.locationProvider = null;
     }
 }

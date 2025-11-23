@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,11 +16,14 @@ import static java.util.Map.entry;
 
 import java.util.Map;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+
 /**
  * Constants used in Powermax messages
  *
  * @author Ron Isaacson - Initial contribution
  */
+@NonNullByDefault
 public class PowermaxMessageConstants {
 
     private PowermaxMessageConstants() {
@@ -28,7 +31,7 @@ public class PowermaxMessageConstants {
 
     // System events
 
-    public static enum PowermaxSysEventType {
+    public enum PowermaxSysEventType {
         NONE,
         ALARM,
         SILENT_ALARM,
@@ -38,7 +41,7 @@ public class PowermaxMessageConstants {
         RESTORE,
         GENERAL_RESTORE,
         CANCEL,
-        RESET;
+        RESET
     }
 
     public static class PowermaxSysEvent {

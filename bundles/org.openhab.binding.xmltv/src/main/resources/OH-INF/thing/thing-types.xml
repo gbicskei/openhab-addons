@@ -15,12 +15,12 @@
 			</parameter>
 			<parameter name="refresh" type="integer" unit="h">
 				<label>Refresh Interval</label>
-				<description>Specifies the XMLTV file reload interval in hours</description>
+				<description>Specifies the XMLTV file reload interval in hours.</description>
 				<default>24</default>
 			</parameter>
 			<parameter name="encoding" type="text" required="true">
 				<label>File encoding</label>
-				<description>Specifies the XMLTV file encoding</description>
+				<description>Specifies the XMLTV file encoding.</description>
 				<default>UTF8</default>
 			</parameter>
 		</config-description>
@@ -53,7 +53,7 @@
 
 			<parameter name="refresh" type="integer" unit="s">
 				<label>Refresh Interval</label>
-				<description>Specifies the refresh interval in seconds</description>
+				<description>Specifies the refresh interval in seconds.</description>
 				<default>60</default>
 			</parameter>
 
@@ -63,7 +63,7 @@
 
 	<channel-group-type id="channelprops">
 		<label>Channel Properties</label>
-		<description>Properties of the current channel</description>
+		<description>Properties of the current channel.</description>
 		<channels>
 			<channel id="iconUrl" typeId="iconUrl"/>
 			<channel id="icon" typeId="icon"/>
@@ -72,7 +72,7 @@
 
 	<channel-group-type id="currentprog">
 		<label>Current Program</label>
-		<description>Program currently on air on this channel</description>
+		<description>Program currently on air on this channel.</description>
 		<channels>
 			<channel id="progStart" typeId="progStart"/>
 			<channel id="progEnd" typeId="progEnd"/>
@@ -88,7 +88,7 @@
 
 	<channel-group-type id="nextprog">
 		<label>Next Program</label>
-		<description>Program which will follow current program on this channel</description>
+		<description>Program which will follow current program on this channel.</description>
 		<channels>
 			<channel id="progStart" typeId="progStart"/>
 			<channel id="timeLeft" typeId="timeLeft"/>
@@ -132,6 +132,10 @@
 		<item-type>DateTime</item-type>
 		<label>Start Time</label>
 		<description>Program Start Time</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Timestamp</tag>
+		</tags>
 		<state readOnly="true" pattern="%1$tF %1$tR"/>
 	</channel-type>
 
@@ -139,6 +143,10 @@
 		<item-type>DateTime</item-type>
 		<label>End Time</label>
 		<description>Program End Time</description>
+		<tags>
+			<tag>Forecast</tag>
+			<tag>Timestamp</tag>
+		</tags>
 		<state readOnly="true" pattern="%1$tF %1$tR"/>
 	</channel-type>
 
@@ -146,6 +154,10 @@
 		<item-type>Number:Time</item-type>
 		<label>Current Time</label>
 		<description>Current time of currently playing program.</description>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Duration</tag>
+		</tags>
 		<state readOnly="true" pattern="%d %unit%"/>
 	</channel-type>
 
@@ -167,6 +179,10 @@
 		<item-type>Number:Dimensionless</item-type>
 		<label>Progress</label>
 		<description>Relative progression of the current program.</description>
+		<tags>
+			<tag>Status</tag>
+			<tag>Progress</tag>
+		</tags>
 		<state readOnly="true" pattern="%d %unit%"/>
 	</channel-type>
 

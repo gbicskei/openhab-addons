@@ -7,6 +7,7 @@
 	<thing-type id="station">
 		<label>Station</label>
 		<description>Provides river level informations for this station</description>
+		<semantic-equipment-tag>WebService</semantic-equipment-tag>
 
 		<channels>
 			<channel id="height" typeId="height"/>
@@ -22,7 +23,8 @@
 			<channel id="alert" typeId="alert-level"/>
 			<channel id="alert-icon" typeId="alert-icon"/>
 			<channel id="short-comment" typeId="comment">
-				<label>Short description</label>
+				<label>Short Description</label>
+				<description>Brief description of the situation.</description>
 			</channel>
 			<channel id="comment" typeId="comment"/>
 			<channel id="observation-time" typeId="observation-time"/>
@@ -46,11 +48,8 @@
 	<channel-type id="flow">
 		<item-type>Number:VolumetricFlowRate</item-type>
 		<label>Current Flow</label>
+		<description>Current river flow</description>
 		<category>flow</category>
-		<tags>
-			<tag>Measurement</tag>
-			<tag>Level</tag>
-		</tags>
 		<state readOnly="true" pattern="%.2f %unit%"/>
 	</channel-type>
 
@@ -81,10 +80,6 @@
 	<channel-type id="gauge">
 		<item-type>Number:Dimensionless</item-type>
 		<label>Relative Measure</label>
-		<tags>
-			<tag>Measurement</tag>
-			<tag>Level</tag>
-		</tags>
 		<state readOnly="true" pattern="%.2f %unit%"/>
 	</channel-type>
 
@@ -109,10 +104,8 @@
 	<channel-type id="comment">
 		<item-type>String</item-type>
 		<label>Comment</label>
+		<description>Detailed comment</description>
 		<category>text</category>
-		<tags>
-			<tag>Status</tag>
-		</tags>
 		<state readOnly="true" pattern="%s"/>
 	</channel-type>
 
@@ -120,9 +113,6 @@
 		<item-type>Image</item-type>
 		<label>Pictogram</label>
 		<description>Official pictogram associated to alert level.</description>
-		<tags>
-			<tag>Status</tag>
-		</tags>
 		<state readOnly="true"/>
 	</channel-type>
 </thing:thing-descriptions>

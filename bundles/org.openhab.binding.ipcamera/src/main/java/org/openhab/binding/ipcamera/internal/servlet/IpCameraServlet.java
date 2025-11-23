@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -17,16 +17,17 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Dictionary;
+import java.util.Properties;
 
-import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.osgi.service.http.HttpService;
-import org.osgi.service.http.NamespaceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,24 +38,32 @@ import org.slf4j.LoggerFactory;
  * @author Matthew Skinner - Initial contribution
  */
 @NonNullByDefault
+@WebServlet(asyncSupported = true)
 public abstract class IpCameraServlet extends HttpServlet {
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final long serialVersionUID = 1L;
     protected final ThingHandler handler;
     protected final HttpService httpService;
+    protected final Dictionary<Object, Object> initParameters;
 
     public IpCameraServlet(ThingHandler handler, HttpService httpService) {
+        this(handler, httpService, new Properties());
+    }
+
+    public IpCameraServlet(ThingHandler handler, HttpService httpService, Dictionary<Object, Object> initParameters) {
         this.handler = handler;
         this.httpService = httpService;
+        this.initParameters = initParameters;
         startListening();
     }
 
     public void startListening() {
         try {
-            httpService.registerServlet("/ipcamera/" + handler.getThing().getUID().getId(), this, null,
+            initParameters.put("servlet-name", "/ipcamera/" + handler.getThing().getUID().getId());
+            httpService.registerServlet("/ipcamera/" + handler.getThing().getUID().getId(), this, initParameters,
                     httpService.createDefaultHttpContext());
-        } catch (NamespaceException | ServletException e) {
-            logger.warn("Registering servlet failed:{}", e.getMessage());
+        } catch (Exception e) {
+            logger.warn("Registering servlet failed: {}", e.getMessage());
         }
     }
 

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -19,6 +19,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.tplinksmarthome.internal.device.BulbDevice;
 import org.openhab.binding.tplinksmarthome.internal.device.DimmerDevice;
 import org.openhab.binding.tplinksmarthome.internal.device.EnergySwitchDevice;
+import org.openhab.binding.tplinksmarthome.internal.device.LightStripDevice;
 import org.openhab.binding.tplinksmarthome.internal.device.PowerStripDevice;
 import org.openhab.binding.tplinksmarthome.internal.device.RangeExtenderDevice;
 import org.openhab.binding.tplinksmarthome.internal.device.SmartHomeDevice;
@@ -29,6 +30,7 @@ import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.binding.BaseThingHandlerFactory;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerFactory;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -43,6 +45,12 @@ import org.osgi.service.component.annotations.Reference;
 public class TPLinkSmartHomeHandlerFactory extends BaseThingHandlerFactory {
 
     private @NonNullByDefault({}) TPLinkIpAddressService ipAddressService;
+    private final TPLinkStateDescriptionProvider stateDescriptionProvider;
+
+    @Activate
+    public TPLinkSmartHomeHandlerFactory(final @Reference TPLinkStateDescriptionProvider stateDescriptionProvider) {
+        this.stateDescriptionProvider = stateDescriptionProvider;
+    }
 
     @Override
     public boolean supportsThingType(final ThingTypeUID thingTypeUID) {
@@ -67,6 +75,9 @@ public class TPLinkSmartHomeHandlerFactory extends BaseThingHandlerFactory {
             case DIMMER:
                 device = new DimmerDevice();
                 break;
+            case LIGHT_STRIP:
+                device = new LightStripDevice(type);
+                break;
             case PLUG:
                 device = new SwitchDevice();
                 break;
@@ -85,7 +96,7 @@ public class TPLinkSmartHomeHandlerFactory extends BaseThingHandlerFactory {
             default:
                 return null;
         }
-        return new SmartHomeHandler(thing, device, type, ipAddressService);
+        return new SmartHomeHandler(thing, device, type, ipAddressService, stateDescriptionProvider);
     }
 
     @Reference

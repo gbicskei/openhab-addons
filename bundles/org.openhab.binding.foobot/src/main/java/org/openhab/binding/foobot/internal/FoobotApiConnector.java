@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -14,7 +14,6 @@ package org.openhab.binding.foobot.internal;
 
 import static org.openhab.binding.foobot.internal.FoobotBindingConstants.*;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,8 +32,8 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpStatus;
-import org.openhab.binding.foobot.internal.json.FoobotDevice;
-import org.openhab.binding.foobot.internal.json.FoobotJsonData;
+import org.openhab.binding.foobot.internal.dto.FoobotDevice;
+import org.openhab.binding.foobot.internal.dto.FoobotJsonData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,12 +91,12 @@ public class FoobotApiConnector {
     public synchronized List<FoobotDevice> getAssociatedDevices(String username) throws FoobotApiException {
         try {
             final String url = URL_TO_FETCH_DEVICES.replace("%username%",
-                    URLEncoder.encode(username, StandardCharsets.UTF_8.toString()));
+                    URLEncoder.encode(username, StandardCharsets.UTF_8));
             logger.debug("URL = {}", url);
 
             List<FoobotDevice> foobotDevices = GSON.fromJson(request(url, apiKey), FOOTBOT_DEVICE_LIST_TYPE);
             return Objects.requireNonNull(foobotDevices);
-        } catch (JsonParseException | UnsupportedEncodingException e) {
+        } catch (JsonParseException e) {
             throw new FoobotApiException(0, e.getMessage());
         }
     }
@@ -112,11 +111,11 @@ public class FoobotApiConnector {
     public synchronized @Nullable FoobotJsonData getSensorData(String uuid) throws FoobotApiException {
         try {
             final String url = URL_TO_FETCH_SENSOR_DATA.replace("%uuid%",
-                    URLEncoder.encode(uuid, StandardCharsets.UTF_8.toString()));
+                    URLEncoder.encode(uuid, StandardCharsets.UTF_8));
             logger.debug("URL = {}", url);
 
             return GSON.fromJson(request(url, apiKey), FoobotJsonData.class);
-        } catch (JsonParseException | UnsupportedEncodingException e) {
+        } catch (JsonParseException e) {
             throw new FoobotApiException(0, e.getMessage());
         }
     }

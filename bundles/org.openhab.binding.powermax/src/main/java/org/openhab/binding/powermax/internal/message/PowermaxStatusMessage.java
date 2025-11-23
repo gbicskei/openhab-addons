@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,6 +16,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.powermax.internal.state.PowermaxArmMode;
 import org.openhab.binding.powermax.internal.state.PowermaxPanelSettings;
 import org.openhab.binding.powermax.internal.state.PowermaxSensorType;
@@ -27,6 +29,7 @@ import org.openhab.binding.powermax.internal.state.PowermaxZoneSettings;
  *
  * @author Laurent Garnier - Initial contribution
  */
+@NonNullByDefault
 public class PowermaxStatusMessage extends PowermaxBaseMessage {
 
     private static byte[] zoneBytes(byte zones1, byte zones9, byte zones17, byte zones25) {
@@ -68,7 +71,7 @@ public class PowermaxStatusMessage extends PowermaxBaseMessage {
     }
 
     @Override
-    protected PowermaxState handleMessageInternal(PowermaxCommManager commManager) {
+    protected @Nullable PowermaxState handleMessageInternal(@Nullable PowermaxCommManager commManager) {
         if (commManager == null) {
             return null;
         }
@@ -178,7 +181,7 @@ public class PowermaxStatusMessage extends PowermaxBaseMessage {
             } else if (zoneEType == 0x05) {
                 // Violated (Motion)
                 PowermaxZoneSettings zone = panelSettings.getZoneSettings(eventZone);
-                if ((zone != null) && zone.getSensorType().equalsIgnoreCase("unknown")) {
+                if ((zone != null) && "unknown".equalsIgnoreCase(zone.getSensorType())) {
                     zone.setSensorType(PowermaxSensorType.MOTION_SENSOR_1.getLabel());
                 }
                 updatedState.getZone(eventZone).tripped.setValue(true);
@@ -273,11 +276,11 @@ public class PowermaxStatusMessage extends PowermaxBaseMessage {
                     // the sensor type always triggers an alarm
                     // or the system is armed away
                     // or the system is armed home and the zone is not interior(-follow)
-                    boolean armed = (!zone.getType().equalsIgnoreCase("Non-Alarm")
+                    boolean armed = (!"Non-Alarm".equalsIgnoreCase(zone.getType())
                             && (zone.isAlwaysInAlarm() || (mode == PowermaxArmMode.ARMED_AWAY.getCode())
                                     || ((mode == PowermaxArmMode.ARMED_HOME.getCode())
-                                            && !zone.getType().equalsIgnoreCase("Interior-Follow")
-                                            && !zone.getType().equalsIgnoreCase("Interior"))));
+                                            && !"Interior-Follow".equalsIgnoreCase(zone.getType())
+                                            && !"Interior".equalsIgnoreCase(zone.getType()))));
                     updatedState.getZone(i).armed.setValue(armed);
                 }
             });

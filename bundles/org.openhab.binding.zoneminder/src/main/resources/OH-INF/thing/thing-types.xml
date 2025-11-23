@@ -7,6 +7,7 @@
 	<bridge-type id="server">
 		<label>ZoneMinder Server</label>
 		<description>Represents a ZoneMinder server</description>
+		<semantic-equipment-tag>AlarmSystem</semantic-equipment-tag>
 		<channels>
 			<channel id="imageMonitorId" typeId="id">
 				<label>Image Monitor Id</label>
@@ -22,7 +23,13 @@
 			<channel id="videoUrl" typeId="url">
 				<label>Video URL</label>
 			</channel>
+			<channel id="runState" typeId="runState"/>
 		</channels>
+
+		<properties>
+			<property name="thingTypeVersion">1</property>
+		</properties>
+
 		<config-description-ref uri="thing-type:zoneminder:server"/>
 	</bridge-type>
 
@@ -33,6 +40,7 @@
 
 		<label>ZoneMinder Monitor</label>
 		<description>Represents a ZoneMinder monitor</description>
+		<semantic-equipment-tag>Display</semantic-equipment-tag>
 		<channels>
 			<channel id="id" typeId="id"/>
 			<channel id="name" typeId="name"/>
@@ -101,6 +109,10 @@
 		<item-type>Switch</item-type>
 		<label>Enabled</label>
 		<description>Enable or disable monitor</description>
+		<tags>
+			<tag>Switch</tag>
+			<tag>Enabled</tag>
+		</tags>
 		<state pattern="%s">
 			<options>
 				<option value="ON">Enable</option>
@@ -127,6 +139,9 @@
 		<item-type>Switch</item-type>
 		<label>Alarm</label>
 		<description>Monitor alarm status</description>
+		<tags>
+			<tag>Alarm</tag>
+		</tags>
 		<state readOnly="true" pattern="%s"></state>
 	</channel-type>
 	<channel-type id="state">
@@ -215,6 +230,12 @@
 		<label>Event Length</label>
 		<description>Length of the event in seconds</description>
 		<state readOnly="true" pattern="%.2f %unit%"></state>
+	</channel-type>
+	<channel-type id="runState">
+		<item-type>String</item-type>
+		<label>Run State</label>
+		<description>The currently executing run state</description>
+		<state readOnly="false" pattern="%s"></state>
 	</channel-type>
 
 </thing:thing-descriptions>

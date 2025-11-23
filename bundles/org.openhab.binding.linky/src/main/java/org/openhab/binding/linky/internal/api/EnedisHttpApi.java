@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2010-2021 Contributors to the openHAB project
+/*
+ * Copyright (c) 2010-2025 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,35 +12,42 @@
  */
 package org.openhab.binding.linky.internal.api;
 
-import java.net.CookieStore;
 import java.net.HttpCookie;
-import java.net.URI;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.util.FormContentProvider;
-import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.util.Fields;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.openhab.binding.linky.internal.LinkyConfiguration;
-import org.openhab.binding.linky.internal.LinkyException;
-import org.openhab.binding.linky.internal.dto.AuthData;
-import org.openhab.binding.linky.internal.dto.AuthResult;
 import org.openhab.binding.linky.internal.dto.ConsumptionReport;
-import org.openhab.binding.linky.internal.dto.ConsumptionReport.Consumption;
+import org.openhab.binding.linky.internal.dto.Contact;
+import org.openhab.binding.linky.internal.dto.Contract;
+import org.openhab.binding.linky.internal.dto.Identity;
+import org.openhab.binding.linky.internal.dto.MeterReading;
+import org.openhab.binding.linky.internal.dto.PrmDetail;
 import org.openhab.binding.linky.internal.dto.PrmInfo;
+import org.openhab.binding.linky.internal.dto.ResponseContact;
+import org.openhab.binding.linky.internal.dto.ResponseContract;
+import org.openhab.binding.linky.internal.dto.ResponseIdentity;
+import org.openhab.binding.linky.internal.dto.ResponseMeter;
+import org.openhab.binding.linky.internal.dto.ResponseTempo;
+import org.openhab.binding.linky.internal.dto.UsagePoint;
 import org.openhab.binding.linky.internal.dto.UserInfo;
+import org.openhab.binding.linky.internal.handler.BridgeRemoteBaseHandler;
+import org.openhab.binding.linky.internal.handler.BridgeRemoteEnedisWebHandler;
+import org.openhab.binding.linky.internal.handler.ThingBaseRemoteHandler;
+import org.openhab.binding.linky.internal.handler.ThingLinkyRemoteHandler;
+import org.openhab.binding.linky.internal.types.LinkyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,233 +58,254 @@ import com.google.gson.JsonSyntaxException;
  * {@link EnedisHttpApi} wraps the Enedis Webservice.
  *
  * @author Gaël L'hopital - Initial contribution
+ * @author Laurent Arnal - Rewrite addon to use official dataconect API
  */
 @NonNullByDefault
 public class EnedisHttpApi {
-    private static final DateTimeFormatter API_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-    private static final String URL_APPS_LINCS = "https://apps.lincs.enedis.fr";
-    private static final String URL_MON_COMPTE = "https://mon-compte.enedis.fr";
-    private static final String URL_ENEDIS_AUTHENTICATE = URL_APPS_LINCS
-            + "/authenticate?target=https://mon-compte-particulier.enedis.fr/suivi-de-mesure/";
-    private static final String URL_COOKIE = "https://mon-compte-particulier.enedis.fr";
 
     private final Logger logger = LoggerFactory.getLogger(EnedisHttpApi.class);
     private final Gson gson;
     private final HttpClient httpClient;
-    private final LinkyConfiguration config;
-    private boolean connected = false;
+    private final BridgeRemoteBaseHandler linkyBridgeHandler;
 
-    public EnedisHttpApi(LinkyConfiguration config, Gson gson, HttpClient httpClient) {
+    public EnedisHttpApi(BridgeRemoteBaseHandler linkyBridgeHandler, Gson gson, HttpClient httpClient) {
         this.gson = gson;
         this.httpClient = httpClient;
-        this.config = config;
+        this.linkyBridgeHandler = linkyBridgeHandler;
     }
 
-    public void initialize() throws LinkyException {
-        addCookie(LinkyConfiguration.INTERNAL_AUTH_ID, config.internalAuthId);
+    public FormContentProvider getFormContent(String fieldName, String fieldValue) {
+        Fields fields = new Fields();
+        fields.put(fieldName, fieldValue);
+        return new FormContentProvider(fields);
+    }
 
-        logger.debug("Starting login process for user : {}", config.username);
+    public void addCookie(String key, String value) {
+        HttpCookie cookie = new HttpCookie(key, value);
+        cookie.setDomain(BridgeRemoteEnedisWebHandler.ENEDIS_DOMAIN);
+        cookie.setPath("/");
+        httpClient.getCookieStore().add(BridgeRemoteEnedisWebHandler.COOKIE_URI, cookie);
+    }
 
-        try {
-            logger.debug("Step 1 : getting authentification");
-            String data = getData(URL_ENEDIS_AUTHENTICATE);
-
-            logger.debug("Reception request SAML");
-            Document htmlDocument = Jsoup.parse(data);
-            Element el = htmlDocument.select("form").first();
-            Element samlInput = el.select("input[name=SAMLRequest]").first();
-
-            logger.debug("Step 2 : send SSO SAMLRequest");
-            ContentResponse result = httpClient.POST(el.attr("action"))
-                    .content(getFormContent("SAMLRequest", samlInput.attr("value"))).send();
-            if (result.getStatus() != 302) {
-                throw new LinkyException("Connection failed step 2");
-            }
-
-            logger.debug("Get the location and the ReqID");
-            Pattern p = Pattern.compile("ReqID%(.*?)%26");
-            Matcher m = p.matcher(getLocation(result));
-            if (!m.find()) {
-                throw new LinkyException("Unable to locate ReqId in header");
-            }
-
-            String reqId = m.group(1);
-            String url = URL_MON_COMPTE
-                    + "/auth/json/authenticate?realm=/enedis&forward=true&spEntityID=SP-ODW-PROD&goto=/auth/SSOPOST/metaAlias/enedis/providerIDP?ReqID%"
-                    + reqId
-                    + "%26index%3Dnull%26acsURL%3Dhttps://apps.lincs.enedis.fr/saml/SSO%26spEntityID%3DSP-ODW-PROD%26binding%3Durn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST&AMAuthCookie=";
-
-            logger.debug(
-                    "Step 3 : auth1 - retrieve the template, thanks to cookie internalAuthId, user is already set");
-            result = httpClient.POST(url).send();
-            if (result.getStatus() != 200) {
-                throw new LinkyException("Connection failed step 3 - auth1 : " + result.getContentAsString());
-            }
-
-            AuthData authData = gson.fromJson(result.getContentAsString(), AuthData.class);
-            if (authData.callbacks.size() < 2 || authData.callbacks.get(0).input.size() == 0
-                    || authData.callbacks.get(1).input.size() == 0 || !config.username
-                            .equals(Objects.requireNonNull(authData.callbacks.get(0).input.get(0)).valueAsString())) {
-                throw new LinkyException("Authentication error, the authentication_cookie is probably wrong");
-            }
-
-            authData.callbacks.get(1).input.get(0).value = config.password;
-            url = "https://mon-compte.enedis.fr/auth/json/authenticate?realm=/enedis&spEntityID=SP-ODW-PROD&goto=/auth/SSOPOST/metaAlias/enedis/providerIDP?ReqID%"
-                    + reqId
-                    + "%26index%3Dnull%26acsURL%3Dhttps://apps.lincs.enedis.fr/saml/SSO%26spEntityID%3DSP-ODW-PROD%26binding%3Durn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST&AMAuthCookie=";
-
-            logger.debug("Step 3 : auth2 - send the auth data");
-            result = httpClient.POST(url).header(HttpHeader.CONTENT_TYPE, "application/json")
-                    .content(new StringContentProvider(gson.toJson(authData))).send();
-            if (result.getStatus() != 200) {
-                throw new LinkyException("Connection failed step 3 - auth2 : " + result.getContentAsString());
-            }
-
-            AuthResult authResult = gson.fromJson(result.getContentAsString(), AuthResult.class);
-            logger.debug("Add the tokenId cookie");
-            addCookie("enedisExt", authResult.tokenId);
-
-            logger.debug("Step 4 : retrieve the SAMLresponse");
-            data = getData(URL_MON_COMPTE + "/" + authResult.successUrl);
-            htmlDocument = Jsoup.parse(data);
-            el = htmlDocument.select("form").first();
-            samlInput = el.select("input[name=SAMLResponse]").first();
-
-            logger.debug("Step 5 : post the SAMLresponse to finish the authentication");
-            result = httpClient.POST(el.attr("action")).content(getFormContent("SAMLResponse", samlInput.attr("value")))
-                    .send();
-            if (result.getStatus() != 302) {
-                throw new LinkyException("Connection failed step 5");
-            }
-            connected = true;
-        } catch (InterruptedException | TimeoutException | ExecutionException | JsonSyntaxException e) {
-            throw new LinkyException("Error opening connection with Enedis webservice", e);
-        }
+    public void removeAllCookie() {
+        httpClient.getCookieStore().removeAll();
     }
 
     public String getLocation(ContentResponse response) {
         return response.getHeaders().get(HttpHeader.LOCATION);
     }
 
-    public void disconnect() throws LinkyException {
-        if (connected) {
-            logger.debug("Logout process");
-            try { // Three times in a row to get disconnected
-                String location = getLocation(httpClient.GET(URL_APPS_LINCS + "/logout"));
-                location = getLocation(httpClient.GET(location));
-                location = getLocation(httpClient.GET(location));
-                CookieStore cookieStore = httpClient.getCookieStore();
-                cookieStore.removeAll();
-                connected = false;
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                throw new LinkyException("Error while disconnecting from Enedis webservice", e);
-            }
-        }
+    public String getContent(ThingBaseRemoteHandler handler, String url) throws LinkyException {
+        return getContent(logger, linkyBridgeHandler, url, httpClient, linkyBridgeHandler.getToken(handler));
     }
 
-    public boolean isConnected() {
-        return connected;
+    public String getContent(String url) throws LinkyException {
+        return getContent(logger, linkyBridgeHandler, url, httpClient, "");
     }
 
-    public void dispose() throws LinkyException {
-        disconnect();
-    }
-
-    private void addCookie(String key, String value) {
-        CookieStore cookieStore = httpClient.getCookieStore();
-        HttpCookie cookie = new HttpCookie(key, value);
-        cookie.setDomain(".enedis.fr");
-        cookie.setPath("/");
-        cookieStore.add(URI.create(URL_COOKIE), cookie);
-    }
-
-    private FormContentProvider getFormContent(String fieldName, String fieldValue) {
-        Fields fields = new Fields();
-        fields.put(fieldName, fieldValue);
-        return new FormContentProvider(fields);
-    }
-
-    private String getData(String url) throws LinkyException {
+    private static String getContent(Logger logger, BridgeRemoteBaseHandler linkyBridgeHandler, String url,
+            HttpClient httpClient, String token) throws LinkyException {
         try {
-            ContentResponse result = httpClient.GET(url);
+            Request request = httpClient.newRequest(url);
+
+            request = request.agent("Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0");
+            request = request.method(HttpMethod.GET);
+            if (!token.isEmpty()) {
+                request = request.header("Authorization", "" + token);
+                request = request.header("Accept", "application/json");
+            }
+
+            ContentResponse result = request.send();
+            if (result.getStatus() == HttpStatus.TEMPORARY_REDIRECT_307
+                    || result.getStatus() == HttpStatus.MOVED_TEMPORARILY_302) {
+                String loc = result.getHeaders().get("Location");
+                String newUrl = "";
+
+                if (loc.startsWith("http://") || loc.startsWith("https://")) {
+                    newUrl = loc;
+                } else {
+                    newUrl = linkyBridgeHandler.getBaseUrl() + loc.substring(1);
+                }
+
+                request = httpClient.newRequest(newUrl);
+                request = request.method(HttpMethod.GET);
+                result = request.send();
+
+                if (result.getStatus() == HttpStatus.TEMPORARY_REDIRECT_307
+                        || result.getStatus() == HttpStatus.MOVED_TEMPORARILY_302) {
+                    loc = result.getHeaders().get("Location");
+                    String[] urlParts = loc.split("/");
+                    if (urlParts.length < 4) {
+                        throw new LinkyException("malformed url : %s", loc);
+                    }
+                    return urlParts[3];
+                }
+            }
             if (result.getStatus() != 200) {
-                throw new LinkyException(String.format("Error requesting '%s' : %s", url, result.getContentAsString()));
+                throw new LinkyException("Error requesting '%s': %s", url, result.getContentAsString());
             }
-            return result.getContentAsString();
+
+            String content = result.getContentAsString();
+            logger.trace("getContent returned {}", content);
+            return content;
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new LinkyException(String.format("Error getting url : '%s'", url), e);
+            throw new LinkyException(e, "Error getting url: '%s'", url);
         }
     }
 
-    public PrmInfo getPrmInfo() throws LinkyException {
-        if (!connected) {
-            initialize();
+    private <T> T getData(ThingBaseRemoteHandler handler, String url, Class<T> clazz) throws LinkyException {
+        if (!linkyBridgeHandler.isConnected()) {
+            linkyBridgeHandler.initialize();
         }
-        final String prm_info_url = URL_APPS_LINCS + "/mes-mesures/api/private/v1/personnes/null/prms";
-        String data = getData(prm_info_url);
-        if (data.isEmpty()) {
-            throw new LinkyException(String.format("Requesting '%s' returned an empty response", prm_info_url));
+
+        int numberRetry = 0;
+        LinkyException lastException = null;
+        logger.debug("getData begin {}: {}", clazz.getName(), url);
+
+        while (numberRetry < 3) {
+            try {
+                String data = getContent(handler, url);
+
+                if (!data.isEmpty()) {
+                    try {
+                        T result = Objects.requireNonNull(gson.fromJson(data, clazz));
+                        logger.trace("getData success {}: {}", clazz.getName(), url);
+                        return result;
+                    } catch (JsonSyntaxException e) {
+                        logger.debug("Invalid JSON response not matching {}: {}", clazz.getName(), data);
+                        throw new LinkyException(e, "Requesting '%s' returned an invalid JSON response", url);
+                    }
+                }
+            } catch (LinkyException ex) {
+                lastException = ex;
+
+                logger.debug("getData error {}: {} , retry{}", clazz.getName(), url, numberRetry);
+
+                // try to reinit connection, fail after 3 attemps
+                linkyBridgeHandler.connectionInit();
+            }
+            numberRetry++;
         }
-        try {
-            PrmInfo[] prms = gson.fromJson(data, PrmInfo[].class);
+
+        logger.debug("getData error {}: {} , maxRetry", clazz.getName(), url);
+
+        throw Objects.requireNonNull(lastException);
+    }
+
+    public PrmInfo getPrmInfo(ThingLinkyRemoteHandler handler, String internId, String prmId) throws LinkyException {
+        String prmInfoUrl = linkyBridgeHandler.getContractUrl().formatted(internId);
+        PrmInfo[] prms = getData(handler, prmInfoUrl, PrmInfo[].class);
+        if (prms.length < 1) {
+            throw new LinkyException("Invalid prms data received");
+        }
+
+        if (prmId.isBlank()) {
             return prms[0];
-        } catch (JsonSyntaxException e) {
-            logger.debug("invalid JSON response not matching PrmInfo[].class: {}", data);
-            throw new LinkyException(String.format("Requesting '%s' returned an invalid JSON response : %s",
-                    prm_info_url, e.getMessage()), e);
         }
+
+        Optional<PrmInfo> result = Arrays.stream(prms).filter(x -> x.idPrm.equals(prmId)).findFirst();
+        if (result.isPresent()) {
+            return result.get();
+        }
+
+        throw new LinkyException(("PRM with id : %s does not exist").formatted(prmId));
     }
 
-    public UserInfo getUserInfo() throws LinkyException {
-        if (!connected) {
-            initialize();
-        }
-        final String user_info_url = URL_APPS_LINCS + "/userinfos";
-        String data = getData(user_info_url);
-        if (data.isEmpty()) {
-            throw new LinkyException(String.format("Requesting '%s' returned an empty response", user_info_url));
-        }
-        try {
-            return Objects.requireNonNull(gson.fromJson(data, UserInfo.class));
-        } catch (JsonSyntaxException e) {
-            logger.debug("invalid JSON response not matching UserInfo.class: {}", data);
-            throw new LinkyException(String.format("Requesting '%s' returned an invalid JSON response : %s",
-                    user_info_url, e.getMessage()), e);
-        }
-    }
-
-    private Consumption getMeasures(String userId, String prmId, LocalDate from, LocalDate to, String request)
+    public PrmDetail getPrmDetails(ThingLinkyRemoteHandler handler, String internId, String prmId)
             throws LinkyException {
-        final String measure_url = URL_APPS_LINCS
-                + "/mes-mesures/api/private/v1/personnes/%s/prms/%s/donnees-%s?dateDebut=%s&dateFin=%s&mesuretypecode=CONS";
-        String url = String.format(measure_url, userId, prmId, request, from.format(API_DATE_FORMAT),
-                to.format(API_DATE_FORMAT));
-        String data = getData(url);
-        if (data.isEmpty()) {
-            throw new LinkyException(String.format("Requesting '%s' returned an empty response", url));
+        String prmInfoUrl = linkyBridgeHandler.getContractUrl();
+        String url = prmInfoUrl.formatted(internId) + "/" + prmId
+                + "?embed=SITALI&embed=SITCOM&embed=SITCON&embed=SYNCON";
+        return getData(handler, url, PrmDetail.class);
+    }
+
+    public UserInfo getUserInfo(ThingLinkyRemoteHandler handler) throws LinkyException {
+        String userInfoUrl = linkyBridgeHandler.getContactUrl();
+        return getData(handler, userInfoUrl, UserInfo.class);
+    }
+
+    public String formatUrl(String apiUrl, String prmId) {
+        return apiUrl.formatted(prmId);
+    }
+
+    public Contract getContract(ThingLinkyRemoteHandler handler, String prmId) throws LinkyException {
+        String contractUrl = linkyBridgeHandler.getContractUrl().formatted(prmId);
+        ResponseContract contractResponse = getData(handler, contractUrl, ResponseContract.class);
+        return contractResponse.customer.usagePoint[0].contracts;
+    }
+
+    public UsagePoint getUsagePoint(ThingLinkyRemoteHandler handler, String prmId) throws LinkyException {
+        String addressUrl = linkyBridgeHandler.getAddressUrl().formatted(prmId);
+        ResponseContract contractResponse = getData(handler, addressUrl, ResponseContract.class);
+        return contractResponse.customer.usagePoint[0].usagePoint;
+    }
+
+    public Identity getIdentity(ThingLinkyRemoteHandler handler, String prmId) throws LinkyException {
+        String identityUrl = linkyBridgeHandler.getIdentityUrl().formatted(prmId);
+        ResponseIdentity customerIdReponse = getData(handler, identityUrl, ResponseIdentity.class);
+        String name = customerIdReponse.identity.naturalPerson.lastname;
+        String[] nameParts = name.split(" ");
+        if (nameParts.length > 1) {
+            customerIdReponse.identity.naturalPerson.firstname = name.split(" ")[0];
+            customerIdReponse.identity.naturalPerson.lastname = name.split(" ")[1];
         }
-        logger.trace("getData returned {}", data);
-        try {
-            ConsumptionReport report = gson.fromJson(data, ConsumptionReport.class);
-            return report.firstLevel.consumptions;
-        } catch (JsonSyntaxException e) {
-            logger.debug("invalid JSON response not matching ConsumptionReport.class: {}", data);
-            throw new LinkyException(
-                    String.format("Requesting '%s' returned an invalid JSON response : %s", url, e.getMessage()), e);
+        return customerIdReponse.identity.naturalPerson;
+    }
+
+    public Contact getContact(ThingLinkyRemoteHandler handler, String prmId) throws LinkyException {
+        String contactUrl = linkyBridgeHandler.getContactUrl().formatted(prmId);
+        ResponseContact contactResponse = getData(handler, contactUrl, ResponseContact.class);
+        return contactResponse.contact;
+    }
+
+    private MeterReading getMeasures(ThingLinkyRemoteHandler handler, String apiUrl, String mps, String prmId,
+            String segment, LocalDate from, LocalDate to, boolean useIndex) throws LinkyException {
+        String dtStart = from.format(linkyBridgeHandler.getApiDateFormat());
+        String dtEnd = to.format(linkyBridgeHandler.getApiDateFormat());
+
+        if (handler.supportNewApiFormat()) {
+            String url = String.format(apiUrl, prmId, dtStart, dtEnd);
+            ResponseMeter meterResponse = getData(handler, url, ResponseMeter.class);
+            return meterResponse.meterReading;
+        } else {
+            String url = String.format(apiUrl, mps, prmId, segment, dtStart, dtEnd);
+            ConsumptionReport consomptionReport = getData(handler, url, ConsumptionReport.class);
+            return MeterReading.convertFromComsumptionReport(consomptionReport, useIndex);
         }
     }
 
-    public Consumption getEnergyData(String userId, String prmId, LocalDate from, LocalDate to) throws LinkyException {
-        if (!connected) {
-            initialize();
-        }
-        return getMeasures(userId, prmId, from, to, "energie");
+    public MeterReading getEnergyData(ThingLinkyRemoteHandler handler, String mps, String prmId, String segment,
+            LocalDate from, LocalDate to) throws LinkyException {
+        return getMeasures(handler, linkyBridgeHandler.getDailyConsumptionUrl(), mps, prmId, segment, from, to, false);
     }
 
-    public Consumption getPowerData(String userId, String prmId, LocalDate from, LocalDate to) throws LinkyException {
-        if (!connected) {
-            initialize();
+    public MeterReading getEnergyIndex(ThingLinkyRemoteHandler handler, String mps, String prmId, String segment,
+            LocalDate from, LocalDate to) throws LinkyException {
+        return getMeasures(handler, linkyBridgeHandler.getDailyIndexUrl(), mps, prmId, segment, from, to, true);
+    }
+
+    public MeterReading getLoadCurveData(ThingLinkyRemoteHandler handler, String mps, String prmId, String segment,
+            LocalDate from, LocalDate to) throws LinkyException {
+        return getMeasures(handler, linkyBridgeHandler.getLoadCurveUrl(), mps, prmId, segment, from, to, false);
+    }
+
+    public MeterReading getPowerData(ThingLinkyRemoteHandler handler, String mps, String prmId, String segment,
+            LocalDate from, LocalDate to) throws LinkyException {
+        return getMeasures(handler, linkyBridgeHandler.getMaxPowerUrl(), mps, prmId, segment, from, to, false);
+    }
+
+    public ResponseTempo getTempoData(ThingBaseRemoteHandler handler, LocalDate from, LocalDate to)
+            throws LinkyException {
+        String dtStart = from.format(linkyBridgeHandler.getApiDateFormatYearsFirst());
+        String dtEnd = to.format(linkyBridgeHandler.getApiDateFormatYearsFirst());
+
+        String url = String.format(linkyBridgeHandler.getTempoUrl(), dtStart, dtEnd);
+
+        if (url.isEmpty()) {
+            return new ResponseTempo();
         }
-        return getMeasures(userId, prmId, from, to, "pmax");
+
+        ResponseTempo responseTempo = getData(handler, url, ResponseTempo.class);
+        return responseTempo;
     }
 }

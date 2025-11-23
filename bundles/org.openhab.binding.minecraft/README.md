@@ -35,7 +35,6 @@ Depending on the thing type, different channels are provided:
 | players         | Number    | The number of players on server         |
 | maxPlayers      | Number    | The maximum number of players on server |
 
-
 ### Player
 
 | Channel Type ID            | Item Type | Description                                                |
@@ -50,29 +49,27 @@ Depending on the thing type, different channels are provided:
 | playerLocation             | Location  | The player location                                        |
 | playerGameMode             | Number    | The players game mode                                      |
 
-
 ### Sign
 
 | Channel Type ID | Item Type | Description                                  |
 |-----------------|-----------|----------------------------------------------|
 | signActive      | Switch    | Does the sign have powered redstone below it |
 
-
 #### Active switch (Controllable from openHAB)
 
-<a href="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hMkNZSjJidGk4b28"><img src="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hMkNZSjJidGk4b28" style="width: 500px; max-width: 100%; height: auto" title="Click for the larger version." /></a>
+<a href="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hMkNZSjJidGk4b28"><img src="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hMkNZSjJidGk4b28" alt="Active switch configuration example" style="width: 500px; max-width: 100%; height: auto" title="Click for the larger version." /></a>
 
 #### Passive sensor
 
-<a href="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hUG1wd3h0MDUzUzQ"><img src="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hUG1wd3h0MDUzUzQ" style="width: 500px; max-width: 100%; height: auto" title="Click for the larger version." /></a>
+<a href="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hUG1wd3h0MDUzUzQ"><img src="https://drive.google.com/uc?export=view&id=0B3UO0c11-Q6hUG1wd3h0MDUzUzQ" alt="Passive sensor configuration example" style="width: 500px; max-width: 100%; height: auto" title="Click for the larger version." /></a>
 
 ### Example Thing Definition
 
 The easiest method to add Minecraft servers, players, and signs is use the automatic discovery.
-You can also manually define the objects using thing configuration files. 
+You can also manually define the objects using thing configuration files.
 Players and signs are connected through Minecraft server [bridges](https://www.openhab.org/docs/configuration/things.html#defining-bridges-using-files).
 
-```xtend
+```java
 Bridge minecraft:server:myminecraftserver "Minecraft server for Friends" @ "Minecraft" [ hostname="192.168.1.100", port=10692 ] {
   Thing player my_name "My Minecraft User" @ "Minecraft" [ playerName="minecraft_username" ]
   Thing player friends_name "My Friend's Minecraft User" @ "Minecraft" [ playerName="friends_username" ]
